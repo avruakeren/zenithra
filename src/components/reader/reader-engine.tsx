@@ -47,8 +47,8 @@ export function ReaderEngine({
   }, [currentPage, isRTL]);
 
   const { onTouchStart, onTouchEnd } = useSwipeGesture({
-    onSwipeLeft: isScroll ? () => undefined : goNext,
-    onSwipeRight: isScroll ? () => undefined : goPrev,
+    onSwipeLeft: isScroll ? () => undefined : isRTL ? goPrev : goNext,
+    onSwipeRight: isScroll ? () => undefined : isRTL ? goNext : goPrev,
     onDoubleTapCenter: () => setShowUI((visible) => !visible),
     enabled: !showSettings && !showChapterList,
   });
