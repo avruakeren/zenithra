@@ -2,15 +2,62 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useSwipeGesture } from "./touch-gesture";
 import { ChapterPages, ReadingSettings } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Settings, List, ArrowLeft, X } from "lucide-react";
 
+function ChapterEndNav({
+  chapter,
+  mangaSlug,
+}: {
+  chapter: ChapterPages;
+  mangaSlug: string;
+}) {
+  const hasPrev = Boolean(chapter.prevChapter);
+  const hasNext = Boolean(chapter.nextChapter);
+
+  if (!hasPrev && !hasNext) {
+    return (
+      <div className="mt-8 mb-4 safe-area-bottom">
+        <Link
+          href={`/manga/${mangaSlug}`}
+          className="block glass-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
+        >
+          Kembali ke Detail Manga
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 mb-4 safe-area-bottom flex gap-2">
+      {hasPrev && (
+        <Link
+          href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
+          className="flex-1 glass rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
+        >
+          ← Prev Ch
+        </Link>
+      )}
+      {hasNext && (
+        <Link
+          href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
+          className="flex-1 glass-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-purple-200"
+        >
+          Next →
+        </Link>
+      )}
+    </div>
+  );
+}
+
 interface ReaderEngineProps {
   chapter: ChapterPages;
   mangaSlug: string;
+  initialPage: number;
   settings: ReadingSettings;
   onSettingsChange: (settings: Partial<ReadingSettings>) => void;
 }
@@ -18,10 +65,12 @@ interface ReaderEngineProps {
 export function ReaderEngine({
   chapter,
   mangaSlug,
+  initialPage,
   settings,
   onSettingsChange,
 }: ReaderEngineProps) {
-  const [currentPage, setCurrentPage] = useState(0);
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [showUI, setShowUI] = useState(true);
   const [direction, setDirection] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
@@ -36,15 +85,29 @@ export function ReaderEngine({
     if (currentPage < totalPages - 1) {
       setDirection(isRTL ? -1 : 1);
       setCurrentPage(p => p + 1);
+      return;
     }
-  }, [currentPage, totalPages, isRTL]);
+
+    router.push(
+      chapter.nextChapter
+        ? `/manga/${mangaSlug}/${chapter.nextChapter}`
+        : `/manga/${mangaSlug}`
+    );
+  }, [currentPage, totalPages, isRTL, router, chapter.nextChapter, mangaSlug]);
 
   const goPrev = useCallback(() => {
     if (currentPage > 0) {
       setDirection(isRTL ? 1 : -1);
       setCurrentPage(p => p - 1);
+      return;
     }
-  }, [currentPage, isRTL]);
+
+    router.push(
+      chapter.prevChapter
+        ? `/manga/${mangaSlug}/${chapter.prevChapter}?from=prev`
+        : `/manga/${mangaSlug}`
+    );
+  }, [currentPage, isRTL, router, chapter.prevChapter, mangaSlug]);
 
   const { onTouchStart, onTouchEnd } = useSwipeGesture({
     onSwipeLeft: isScroll ? () => undefined : isRTL ? goPrev : goNext,
@@ -173,6 +236,7 @@ export function ReaderEngine({
                 />
               </div>
             ))}
+            <ChapterEndNav chapter={chapter} mangaSlug={mangaSlug} />
           </div>
         </div>
       ) : (
@@ -204,7 +268,7 @@ export function ReaderEngine({
               <button
                 onClick={isRTL ? goNext : goPrev}
                 className="w-1/3 h-full"
-                aria-label={isRTL ? "Halaman selanjutnya" : "Halaman sebelumnya"}
+                aria-label={isRTL ? "Selanjutnya" : "Sebelumnya"}
               />
               <button
                 onDoubleClick={() => setShowUI(true)}
@@ -214,7 +278,7 @@ export function ReaderEngine({
               <button
                 onClick={isRTL ? goPrev : goNext}
                 className="w-1/3 h-full"
-                aria-label={isRTL ? "Halaman sebelumnya" : "Halaman selanjutnya"}
+                aria-label={isRTL ? "Sebelumnya" : "Selanjutnya"}
               />
             </div>
           )}
@@ -236,9 +300,8 @@ export function ReaderEngine({
                 <>
                   <button
                     onClick={isRTL ? goNext : goPrev}
-                    disabled={isRTL ? currentPage === totalPages - 1 : currentPage === 0}
-                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center disabled:opacity-30"
-                    aria-label={isRTL ? "Halaman selanjutnya" : "Halaman sebelumnya"}
+                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+                    aria-label={isRTL ? "Selanjutnya" : "Sebelumnya"}
                   >
                     <ChevronLeft size={20} />
                   </button>
@@ -249,9 +312,8 @@ export function ReaderEngine({
                   </div>
                   <button
                     onClick={isRTL ? goPrev : goNext}
-                    disabled={isRTL ? currentPage === 0 : currentPage === totalPages - 1}
-                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center disabled:opacity-30"
-                    aria-label={isRTL ? "Halaman sebelumnya" : "Halaman selanjutnya"}
+                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+                    aria-label={isRTL ? "Sebelumnya" : "Selanjutnya"}
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -430,7 +492,7 @@ export function ReaderEngine({
                   </Link>
                 )}
                 <div className="glass-elevated rounded-xl px-4 py-3 text-center text-sm font-medium text-purple-300">
-                  Chapter {chapter.chapterNumber} (Aktif)
+                  Chapter {chapter.chapterNumber}
                 </div>
                 {chapter.nextChapter && (
                   <Link
