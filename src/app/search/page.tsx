@@ -110,9 +110,9 @@ export default function SearchPage() {
   };
 
   return (
-    <main className="flex-1 pb-24">
+    <main className="flex-1 page-bottom">
       {/* Search Header */}
-      <header className="pt-12 pb-4 px-4">
+      <header className="page-top pb-4 px-4">
         <h1 className="text-xl font-bold mb-4">Cari Manga</h1>
         <form onSubmit={handleSubmit} className="relative">
           <SearchIcon size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />

@@ -71,7 +71,7 @@ export default function ChapterReaderPage({
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#050208] flex items-center justify-center px-8">
+      <div className="reader-shell z-50 bg-[#050208] flex items-center justify-center px-8">
         <div className="text-center glass rounded-2xl p-8">
           <BookOpen size={40} className="mx-auto mb-4 text-text-dim" />
           <p className="text-sm text-text-muted mb-4">{error}</p>
@@ -88,7 +88,7 @@ export default function ChapterReaderPage({
 
   if (loading || isStale || !chapterData) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#050208] flex items-center justify-center">
+      <div className="reader-shell z-50 bg-[#050208] flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 rounded-full border-2 border-purple-500/20 border-t-purple-500 animate-spin mx-auto mb-4" />
           <p className="text-sm text-text-muted">Memuat chapter...</p>

@@ -64,9 +64,9 @@ export default function HomePage() {
   const lastRead = useMemo(() => history, [history]);
 
   return (
-    <main className="flex-1 pb-24">
+    <main className="flex-1 page-bottom">
       {/* Hero Header */}
-      <header className="pt-12 pb-6 px-4">
+      <header className="page-top pb-6 px-4">
         <div className="flex items-center gap-4 mb-3">
           <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 ring-1 ring-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.28)]">
             <Image

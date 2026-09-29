@@ -83,7 +83,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
   };
 
   return (
-    <main className="min-h-screen pb-24">
+    <main className="min-h-screen page-bottom">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-40 glass-elevated safe-area-top">
         <div className="flex items-center gap-3 px-4 py-3">
@@ -102,7 +102,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         </div>
       </div>
 
-      <div className="pt-16">
+      <div className="page-top-detail">
         {loading ? (
           <div className="px-4 space-y-4">
             <div className="flex gap-4">

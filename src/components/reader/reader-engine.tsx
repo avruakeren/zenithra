@@ -239,7 +239,7 @@ export function ReaderEngine({
   return (
     <div
       ref={containerRef}
-      className="reader-page fixed inset-0 z-50 bg-[#050208] flex flex-col"
+      className="reader-page reader-shell z-50 bg-[#050208] flex flex-col"
       style={{ filter: `brightness(${settings.brightness})` }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}

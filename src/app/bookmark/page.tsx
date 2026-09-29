@@ -29,9 +29,9 @@ export default function BookmarkPage() {
   }, []);
 
   return (
-    <main className="flex-1 pb-24">
+    <main className="flex-1 page-bottom">
       {/* Header */}
-      <header className="pt-12 pb-4 px-4">
+      <header className="page-top pb-4 px-4">
         <h1 className="text-xl font-bold mb-4">Koleksi</h1>
 
         {/* Tabs */}
