@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { MangaRankRow } from "@/components/manga/manga-rank-row";
 import { MangaGrid } from "@/components/manga/manga-grid";
+import { LastReadRow, type LastReadItem } from "@/components/manga/last-read-row";
 import { BottomNav } from "@/components/shared/bottom-nav";
+import { Footer } from "@/components/shared/footer";
+import { getHistory } from "@/lib/bookmark";
 import { Manga } from "@/lib/types";
 
 export default function HomePage() {
@@ -12,6 +15,8 @@ export default function HomePage() {
   const [latest, setLatest] = useState<Manga[]>([]);
   const [loading, setLoading] = useState(true);
   const [rankTab, setRankTab] = useState<"harian" | "mingguan">("harian");
+  const [history, setHistory] = useState<LastReadItem[]>([]);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -32,6 +37,31 @@ export default function HomePage() {
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const hydrate = window.setTimeout(() => {
+      setHistory(
+        getHistory()
+          .slice(0, 10)
+          .map((h) => ({
+            title: h.title,
+            slug: h.slug,
+            thumbnail: h.thumbnail,
+            lastChapter: h.lastChapter,
+            readAt: h.readAt,
+          }))
+      );
+      setNow(Date.now());
+    }, 0);
+    const interval = window.setInterval(() => setNow(Date.now()), 60000);
+
+    return () => {
+      window.clearTimeout(hydrate);
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const lastRead = useMemo(() => history, [history]);
 
   return (
     <main className="flex-1 pb-24">
@@ -56,6 +86,8 @@ export default function HomePage() {
       </header>
 
       <div className="px-4">
+        <LastReadRow items={lastRead} now={now} />
+
         {/* Ranking Section */}
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -93,6 +125,8 @@ export default function HomePage() {
         {/* Latest Section */}
         <MangaGrid title="Terbaru" manga={latest} loading={loading} />
       </div>
+
+      <Footer />
 
       <BottomNav />
     </main>

@@ -46,7 +46,7 @@ export default function ChapterReaderPage({
           {
             title: data.title,
             slug,
-            thumbnail: "",
+            thumbnail: data.thumbnail,
             genre: "",
             type: "manga",
             latestChapter: data.chapterNumber,
@@ -101,6 +101,7 @@ export default function ChapterReaderPage({
       key={chapter}
       chapter={chapterData}
       mangaSlug={slug}
+      currentChapterSlug={chapter}
       initialPage={initialPage}
       settings={settings}
       onSettingsChange={handleSettingsChange}

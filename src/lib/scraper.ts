@@ -260,17 +260,30 @@ export async function getChapterPages(chapterSlug: string): Promise<ChapterPages
   let mangaSlug = "";
   let chNumber = "";
   let seriesName = "";
+  let thumbnail = "";
   if (chapterDataM) {
     const dataStr = chapterDataM[1];
     const seriesM = dataStr.match(/series\s*:\s*"([^"]*)"/);
     const chM = dataStr.match(/chapter\s*:\s*"([^"]*)"/);
     const linkSeriesM = dataStr.match(/link_series\s*:\s*"([^"]*)"/);
+    const thumbnailM = dataStr.match(/thumbnail\s*:\s*"([^"]*)"/);
     seriesName = seriesM?.[1] || "";
     chNumber = chM?.[1] || "";
+    if (thumbnailM?.[1]) {
+      thumbnail = decodeHtml(thumbnailM[1].replace(/\\\//g, "/"));
+    }
     if (linkSeriesM) {
       const seriesUrl = linkSeriesM[1].replace(/\\\//g, "/");
       mangaSlug = seriesUrl.match(/\/manga\/([^/?#]+)/)?.[1] || "";
     }
+  }
+
+  if (!thumbnail) {
+    thumbnail =
+      html.match(/<meta\s+itemprop="image"\s+content="([^"]+)"/)?.[1] ||
+      html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/)?.[1] ||
+      "";
+    if (thumbnail) thumbnail = decodeHtml(thumbnail);
   }
 
   if (!mangaSlug) {
@@ -323,6 +336,7 @@ export async function getChapterPages(chapterSlug: string): Promise<ChapterPages
   return {
     title: titleM?.[1]?.trim() || `${seriesName} Chapter ${chNumber}`,
     chapterNumber: chNumber,
+    thumbnail,
     pages,
     prevChapter: normalizeChapterSlug(prevM?.[1]) || undefined,
     nextChapter: normalizeChapterSlug(nextM?.[1]) || undefined,

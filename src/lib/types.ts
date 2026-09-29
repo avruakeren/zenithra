@@ -34,6 +34,7 @@ export interface Chapter {
 export interface ChapterPages {
   title: string;
   chapterNumber: string;
+  thumbnail: string;
   pages: string[];
   prevChapter?: string;
   nextChapter?: string;

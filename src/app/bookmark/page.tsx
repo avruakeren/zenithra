@@ -5,6 +5,7 @@ import { MangaCard } from "@/components/manga/manga-card";
 import { BottomNav } from "@/components/shared/bottom-nav";
 import { Manga } from "@/lib/types";
 import { getBookmarks, getHistory } from "@/lib/bookmark";
+import { timeAgo } from "@/lib/utils";
 import { Bookmark, Clock } from "lucide-react";
 
 export default function BookmarkPage() {
@@ -26,18 +27,6 @@ export default function BookmarkPage() {
       window.clearInterval(interval);
     };
   }, []);
-
-  const timeAgo = (timestamp: number) => {
-    if (!now) return "";
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (minutes < 1) return "Baru saja";
-    if (minutes < 60) return `${minutes} menit lalu`;
-    if (hours < 24) return `${hours} jam lalu`;
-    return `${days} hari lalu`;
-  };
 
   return (
     <main className="flex-1 pb-24">
@@ -119,7 +108,9 @@ export default function BookmarkPage() {
                     <p className="text-xs text-purple-400 mb-1">
                       Chapter {h.lastChapter}
                     </p>
-                    <p className="text-[10px] text-text-dim">{timeAgo(h.readAt)}</p>
+                    <p className="text-[10px] text-text-dim">
+                      {now ? timeAgo(h.readAt, now) : ""}
+                    </p>
                   </div>
                 </div>
               </a>
