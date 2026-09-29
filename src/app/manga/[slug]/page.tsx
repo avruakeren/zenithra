@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,15 +9,41 @@ import { ChapterList } from "@/components/manga/chapter-list";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassBadge } from "@/components/ui/glass-badge";
 import { ChapterListSkeleton } from "@/components/shared/skeleton";
-import { addBookmark, removeBookmark, isBookmarked } from "@/lib/bookmark";
+import { addBookmark, removeBookmark, isBookmarked, getHistory } from "@/lib/bookmark";
 import { ArrowLeft, Bookmark, BookmarkCheck, ChevronDown, ChevronUp } from "lucide-react";
+
+function parseChapterNumber(value: string): number {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export default function MangaDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [manga, setManga] = useState<MangaDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookmarked, setBookmarked] = useState(false);
+  const [lastReadChapter, setLastReadChapter] = useState<string | null>(null);
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
+
+  const sortedChapters = useMemo(() => {
+    if (!manga) return [];
+    return [...manga.chapters].sort(
+      (a, b) => parseChapterNumber(a.number) - parseChapterNumber(b.number)
+    );
+  }, [manga]);
+
+  const firstChapter = sortedChapters[0];
+  const latestChapter = sortedChapters[sortedChapters.length - 1];
+
+  const readProgress = useMemo(() => {
+    const latestNumber = parseChapterNumber(latestChapter?.number ?? "");
+    if (!latestChapter || latestNumber <= 0) return null;
+
+    const readNumber = parseChapterNumber(lastReadChapter ?? "");
+    const percent = Math.min(100, Math.max(0, Math.round((readNumber / latestNumber) * 100)));
+
+    return { percent, readNumber, latestNumber };
+  }, [latestChapter, lastReadChapter]);
 
   useEffect(() => {
     async function fetchManga() {
@@ -26,6 +52,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         const data = await res.json();
         setManga(data);
         setBookmarked(isBookmarked(slug));
+        setLastReadChapter(getHistory().find((h) => h.slug === slug)?.lastChapter ?? null);
       } catch (err) {
         console.error("Failed to fetch manga:", err);
       } finally {
@@ -47,8 +74,8 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         thumbnail: manga.thumbnail,
         genre: manga.genres[0] || "",
         type: manga.type as "manga" | "manhwa" | "manhua",
-        latestChapter: manga.chapters[0]?.number || "",
-        latestChapterSlug: manga.chapters[0]?.slug || "",
+        latestChapter: latestChapter?.number || "",
+        latestChapterSlug: latestChapter?.slug || "",
         url: `/manga/${slug}`,
       });
       setBookmarked(true);
@@ -150,11 +177,39 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
               </div>
             )}
 
+            {readProgress && (
+              <div className="glass rounded-2xl p-4 mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold">Progres Baca</h3>
+                  <span className="text-sm font-mono font-semibold text-purple-300">
+                    {readProgress.percent}%
+                  </span>
+                </div>
+                <div
+                  className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={readProgress.percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-[width] duration-500"
+                    style={{ width: `${readProgress.percent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-text-muted mt-2">
+                  {readProgress.readNumber > 0
+                    ? `Chapter ${readProgress.readNumber} dari ${readProgress.latestNumber}`
+                    : "Belum dibaca"}
+                </p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-2 mb-5">
-              {manga.chapters.length > 0 && (
+              {firstChapter && (
                 <Link
-                  href={`/manga/${slug}/${manga.chapters[0].slug}`}
+                  href={`/manga/${slug}/${firstChapter.slug}`}
                   className="flex-1"
                 >
                   <GlassButton variant="accent" className="w-full">
@@ -162,9 +217,9 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
                   </GlassButton>
                 </Link>
               )}
-              {manga.chapters.length > 0 && (
+              {latestChapter && (
                 <Link
-                  href={`/manga/${slug}/${manga.chapters[manga.chapters.length - 1].slug}`}
+                  href={`/manga/${slug}/${latestChapter.slug}`}
                   className="flex-1"
                 >
                   <GlassButton className="w-full">
