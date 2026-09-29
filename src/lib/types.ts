@@ -33,6 +33,7 @@ export interface Chapter {
 
 export interface ChapterPages {
   title: string;
+  seriesName: string;
   chapterNumber: string;
   thumbnail: string;
   pages: string[];

@@ -5,6 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function cleanMangaTitle(title: string): string {
+  return title
+    .replace(/\s+Chapter\s+[\d.]+(?:\s*[-–]\s*[\d.]+)?\s*$/i, "")
+    .replace(/\s+Ch\s+[\d.]+(?:\s*[-–]\s*[\d.]+)?\s*$/i, "")
+    .trim();
+}
+
 export function timeAgo(timestamp: number, now: number): string {
   const diff = now - timestamp;
   const minutes = Math.floor(diff / 60000);

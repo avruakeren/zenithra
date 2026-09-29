@@ -5,7 +5,7 @@ import { MangaCard } from "@/components/manga/manga-card";
 import { BottomNav } from "@/components/shared/bottom-nav";
 import { Manga } from "@/lib/types";
 import { getBookmarks, getHistory } from "@/lib/bookmark";
-import { timeAgo } from "@/lib/utils";
+import { cleanMangaTitle, timeAgo } from "@/lib/utils";
 import { Bookmark, Clock } from "lucide-react";
 
 export default function BookmarkPage() {
@@ -104,7 +104,9 @@ export default function BookmarkPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0 py-0.5">
-                    <h3 className="text-sm font-medium line-clamp-1 mb-1">{h.title}</h3>
+                    <h3 className="text-sm font-medium line-clamp-1 mb-1">
+                      {cleanMangaTitle(h.title)}
+                    </h3>
                     <p className="text-xs text-purple-400 mb-1">
                       Chapter {h.lastChapter}
                     </p>

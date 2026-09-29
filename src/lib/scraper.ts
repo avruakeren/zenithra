@@ -335,6 +335,7 @@ export async function getChapterPages(chapterSlug: string): Promise<ChapterPages
 
   return {
     title: titleM?.[1]?.trim() || `${seriesName} Chapter ${chNumber}`,
+    seriesName,
     chapterNumber: chNumber,
     thumbnail,
     pages,

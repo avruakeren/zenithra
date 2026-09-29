@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, use } from "react";
 import { ReaderEngine } from "@/components/reader/reader-engine";
 import { ChapterPages, ReadingSettings } from "@/lib/types";
 import { getReadingSettings, setReadingSettings, addToHistory } from "@/lib/bookmark";
+import { cleanMangaTitle } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 
 export default function ChapterReaderPage({
@@ -44,7 +45,7 @@ export default function ChapterReaderPage({
         // Save to history
         addToHistory(
           {
-            title: data.title,
+            title: data.seriesName || cleanMangaTitle(data.title),
             slug,
             thumbnail: data.thumbnail,
             genre: "",

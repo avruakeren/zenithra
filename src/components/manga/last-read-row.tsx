@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { BookOpen, History } from "lucide-react";
-import { timeAgo } from "@/lib/utils";
+import { cleanMangaTitle, timeAgo } from "@/lib/utils";
 
 export interface LastReadItem {
   title: string;
@@ -50,7 +50,7 @@ export function LastReadRow({ items, now }: LastReadRowProps) {
               )}
             </div>
             <h3 className="text-xs font-medium line-clamp-2 leading-tight mb-1">
-              {item.title}
+              {cleanMangaTitle(item.title)}
             </h3>
             <p className="text-[10px] text-purple-300">Chapter {item.lastChapter}</p>
             <p className="text-[10px] text-text-dim">{timeAgo(item.readAt, now)}</p>
