@@ -10,7 +10,7 @@ import { GlassButton } from "@/components/ui/glass-button";
 import { GlassBadge } from "@/components/ui/glass-badge";
 import { ChapterListSkeleton } from "@/components/shared/skeleton";
 import { addBookmark, removeBookmark, isBookmarked, getHistory } from "@/lib/bookmark";
-import { ArrowLeft, Bookmark, BookmarkCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Play } from "lucide-react";
 
 function parseChapterNumber(value: string): number {
   const parsed = parseFloat(value);
@@ -23,6 +23,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
   const [loading, setLoading] = useState(true);
   const [bookmarked, setBookmarked] = useState(false);
   const [lastReadChapter, setLastReadChapter] = useState<string | null>(null);
+  const [lastReadChapterSlug, setLastReadChapterSlug] = useState<string | null>(null);
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
 
   const sortedChapters = useMemo(() => {
@@ -52,7 +53,9 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         const data = await res.json();
         setManga(data);
         setBookmarked(isBookmarked(slug));
-        setLastReadChapter(getHistory().find((h) => h.slug === slug)?.lastChapter ?? null);
+        const historyEntry = getHistory().find((h) => h.slug === slug);
+        setLastReadChapter(historyEntry?.lastChapter ?? null);
+        setLastReadChapterSlug(historyEntry?.lastChapterSlug ?? null);
       } catch (err) {
         console.error("Failed to fetch manga:", err);
       } finally {
@@ -102,7 +105,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         </div>
       </div>
 
-      <div className="page-top-detail">
+      <div className="page-top-detail relative">
         {loading ? (
           <div className="px-4 space-y-4">
             <div className="flex gap-4">
@@ -120,11 +123,15 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
             <ChapterListSkeleton />
           </div>
         ) : manga ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="px-4"
-          >
+          <>
+            <div aria-hidden="true" className="manga-ambience">
+              <img src={manga.thumbnail} alt="" />
+            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative z-10 px-4"
+            >
             {/* Manga Info */}
             <div className="flex gap-4 mb-5">
               <div className="relative w-32 h-44 rounded-xl overflow-hidden shrink-0 glass">
@@ -206,27 +213,38 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-2 mb-5">
-              {firstChapter && (
-                <Link
-                  href={`/manga/${slug}/${firstChapter.slug}`}
-                  className="flex-1"
-                >
+            <div className="mb-5 space-y-2">
+              {lastReadChapterSlug && (
+                <Link href={`/manga/${slug}/${lastReadChapterSlug}`} className="block">
                   <GlassButton variant="accent" className="w-full">
-                    Baca dari Awal
+                    <Play size={16} fill="currentColor" />
+                    Lanjutkan Membaca
                   </GlassButton>
                 </Link>
               )}
-              {latestChapter && (
-                <Link
-                  href={`/manga/${slug}/${latestChapter.slug}`}
-                  className="flex-1"
-                >
-                  <GlassButton className="w-full">
-                    Chapter Terbaru
-                  </GlassButton>
-                </Link>
-              )}
+              <div className="flex gap-2">
+                {firstChapter && (
+                  <Link
+                    href={`/manga/${slug}/${firstChapter.slug}`}
+                    className="flex-1"
+                  >
+                    <GlassButton
+                      variant={lastReadChapterSlug ? "default" : "accent"}
+                      className="w-full"
+                    >
+                      Baca dari Awal
+                    </GlassButton>
+                  </Link>
+                )}
+                {latestChapter && (
+                  <Link
+                    href={`/manga/${slug}/${latestChapter.slug}`}
+                    className="flex-1"
+                  >
+                    <GlassButton className="w-full">Chapter Terbaru</GlassButton>
+                  </Link>
+                )}
+              </div>
             </div>
 
             {/* Chapter List */}
@@ -236,7 +254,8 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
               </h2>
               <ChapterList chapters={manga.chapters} mangaSlug={slug} />
             </section>
-          </motion.div>
+            </motion.div>
+          </>
         ) : (
           <div className="px-4 text-center py-20">
             <p className="text-text-muted">Manga tidak ditemukan</p>

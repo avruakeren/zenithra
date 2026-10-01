@@ -223,10 +223,54 @@ body {
 .safe-area-top { padding-top: var(--safe-top); }
 .safe-area-bottom { padding-bottom: var(--safe-bottom); }
 
+/* Tunable ambience knobs (detail manga page) */
+:root {
+  --ambience-height: 780px;
+  --ambience-origin-x: 80px;
+  --ambience-origin-y: 88px;
+  --ambience-spread: 150% 125%;
+  --ambience-opacity: 0.3;
+}
+
 /* Page headers that previously used a fixed pt-* spacer */
 .page-top { padding-top: calc(var(--safe-top) + 3rem); }
 .page-top-detail { padding-top: calc(var(--safe-top) + 4.5rem); }
 .page-bottom { padding-bottom: calc(var(--safe-bottom) + 6rem); }
+
+/* Poster ambience: radial bleed originating at the poster frame */
+.manga-ambience {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: var(--ambience-height);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(
+    var(--ambience-spread) at var(--ambience-origin-x) var(--ambience-origin-y),
+    #000 0%,
+    #000 22%,
+    rgba(0, 0, 0, 0.65) 48%,
+    rgba(0, 0, 0, 0.25) 68%,
+    transparent 85%
+  );
+  mask-image: radial-gradient(
+    var(--ambience-spread) at var(--ambience-origin-x) var(--ambience-origin-y),
+    #000 0%,
+    #000 22%,
+    rgba(0, 0, 0, 0.65) 48%,
+    rgba(0, 0, 0, 0.25) 68%,
+    transparent 85%
+  );
+}
+
+.manga-ambience img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.25);
+  filter: blur(36px);
+  opacity: var(--ambience-opacity);
+}
 
 /* Full-bleed reader shell: edge to edge, follows the dynamic viewport */
 .reader-shell {
