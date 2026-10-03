@@ -12,7 +12,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function MangaCardSkeleton() {
   return (
-    <div className="glass rounded-2xl p-3 flex gap-3">
+    <div className="surface rounded-2xl p-3 flex gap-3">
       <Skeleton className="w-20 h-28 rounded-lg shrink-0" />
       <div className="flex-1 space-y-2 py-1">
         <Skeleton className="h-4 w-3/4" />
@@ -43,7 +43,7 @@ export function MangaGridSkeleton({ count = 6 }: { count?: number }) {
 
 export function RankCardSkeleton() {
   return (
-    <div className="glass rounded-2xl p-3 w-32 shrink-0">
+    <div className="surface rounded-2xl p-3 w-32 shrink-0">
       <Skeleton className="aspect-[3/4] rounded-xl mb-2" />
       <Skeleton className="h-3 w-full" />
       <Skeleton className="h-3 w-2/3 mt-1" />
@@ -55,7 +55,7 @@ export function ChapterListSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="glass rounded-xl p-3 flex items-center gap-3">
+        <div key={i} className="surface rounded-xl p-3 flex items-center gap-3">
           <Skeleton className="h-4 w-8" />
           <Skeleton className="h-4 flex-1" />
           <Skeleton className="h-3 w-16" />

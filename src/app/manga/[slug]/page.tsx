@@ -134,7 +134,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
             >
             {/* Manga Info */}
             <div className="flex gap-4 mb-5">
-              <div className="relative w-32 h-44 rounded-xl overflow-hidden shrink-0 glass">
+              <div className="relative w-32 h-44 rounded-xl overflow-hidden shrink-0 surface">
                 <Image
                   src={manga.thumbnail}
                   alt={manga.title}
@@ -164,7 +164,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
 
             {/* Synopsis */}
             {manga.synopsis && (
-              <div className="glass rounded-2xl p-4 mb-5">
+              <div className="surface rounded-2xl p-4 mb-5">
                 <h3 className="text-sm font-semibold mb-2">Sinopsis</h3>
                 <p className={`text-xs text-text-muted leading-relaxed ${!showFullSynopsis ? "line-clamp-3" : ""}`}>
                   {manga.synopsis}
@@ -185,7 +185,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
             )}
 
             {readProgress && (
-              <div className="glass rounded-2xl p-4 mb-5">
+              <div className="surface rounded-2xl p-4 mb-5">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold">Progres Baca</h3>
                   <span className="text-sm font-mono font-semibold text-purple-300">

@@ -121,7 +121,7 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Judul manga..."
-            className="w-full h-12 pl-11 pr-20 glass rounded-2xl bg-transparent text-sm outline-none placeholder:text-text-dim"
+            className="w-full h-12 pl-11 pr-20 surface rounded-2xl bg-transparent text-sm outline-none placeholder:text-text-dim"
           />
           {query && (
             <button
@@ -162,7 +162,7 @@ export default function SearchPage() {
         {loading ? (
           <MangaGridSkeleton count={6} />
         ) : error ? (
-          <div className="glass rounded-2xl p-5 text-center">
+          <div className="surface rounded-2xl p-5 text-center">
             <p className="text-sm text-text-muted">{error}. Coba lagi sebentar.</p>
           </div>
         ) : results.length > 0 ? (

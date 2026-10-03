@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { MotionConfig } from "framer-motion";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id" className="h-full antialiased">
       <body className="min-h-full flex flex-col noise-overlay">
         <div className="mesh-gradient" />
-        {children}
+        {/* JS-driven animations honour the OS reduced-motion setting; the
+            CSS media query alone cannot reach Framer Motion transforms. */}
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
       </body>
     </html>
   );

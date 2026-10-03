@@ -72,7 +72,7 @@ export default function ChapterReaderPage({
   if (error) {
     return (
       <div className="reader-shell z-50 bg-[#050208] flex items-center justify-center px-8">
-        <div className="text-center glass rounded-2xl p-8">
+        <div className="text-center surface rounded-2xl p-8">
           <BookOpen size={40} className="mx-auto mb-4 text-text-dim" />
           <p className="text-sm text-text-muted mb-4">{error}</p>
           <button

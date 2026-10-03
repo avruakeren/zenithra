@@ -33,10 +33,17 @@
   --accent: #94a3c8;
   --accent-glow: #aab8d8;
   --accent-muted: #6b7aa8;
-  --text-muted: #8a8fa8;
-  --text-dim: #505670;
+  /* Contrast against --background (#0c0e1a):
+     --text-muted = 7.4:1, --text-dim = 4.9:1 (both pass WCAG AA).
+     The previous --text-dim (#505670) sat at 2.66:1 and failed. */
+  --text-muted: #9aa0b8;
+  --text-dim: #7a8099;
   --surface-dark: #0e1020;
   --surface-darker: #080a14;
+  /* Non-blurred surface tokens for in-flow content (see .surface). */
+  --surface-bg: rgba(160, 174, 216, 0.055);
+  --surface-bg-elevated: rgba(160, 174, 216, 0.085);
+  --focus-ring: #a8b8e0;
 }
 
 * {
@@ -56,7 +63,62 @@ body {
   overflow-x: hidden;
 }
 
-/* ===== GLASS UTILITIES ===== */
+/* ===== KEYBOARD FOCUS ===== */
+
+/* Keyboard users get a visible ring on every interactive element. Mouse and
+   touch users do not, so :focus-visible avoids rings on tap. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Inputs keep their own border treatment, so drop the offset there. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+/* ===== REDUCED MOTION ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== SURFACE UTILITIES (in-flow, no backdrop-filter) ===== */
+
+/* backdrop-filter is expensive and forces a GPU repaint on every frame the
+   element is on screen. It is reserved for fixed/sticky chrome (.glass below).
+   Cards that scroll with the page use these instead: same visual language,
+   a translucent fill plus a hairline and a soft shadow, but no blur. */
+.surface {
+  background: var(--surface-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 2px 12px rgba(0, 0, 0, 0.22);
+}
+
+.surface-elevated {
+  background: var(--surface-bg-elevated);
+  border: 1px solid var(--glass-border-elevated);
+  box-shadow:
+    inset 0 1px 0 rgba(200, 210, 240, 0.1),
+    0 4px 18px rgba(0, 0, 0, 0.26);
+}
+
+/* ===== GLASS UTILITIES (fixed/sticky chrome only) ===== */
 
 .glass {
   background: var(--glass-bg);
@@ -87,8 +149,6 @@ body {
 
 .glass-button {
   background: rgba(148, 163, 200, 0.1);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(160, 174, 216, 0.1);
   box-shadow:
     inset 0 1px 0 rgba(200, 210, 240, 0.08),

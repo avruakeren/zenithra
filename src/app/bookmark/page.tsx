@@ -93,7 +93,7 @@ export default function BookmarkPage() {
                 href={`/manga/${h.slug}/${h.lastChapterSlug}`}
                 className="block"
               >
-                <div className="glass rounded-2xl p-3 flex gap-3 transition-all active:scale-[0.98]">
+                <div className="surface rounded-2xl p-3 flex gap-3 transition-all active:scale-[0.98]">
                   <div className="w-16 h-22 rounded-lg bg-white/5 overflow-hidden shrink-0 relative">
                     {h.thumbnail && (
                       <img

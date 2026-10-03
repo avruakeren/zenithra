@@ -24,7 +24,7 @@ function ChapterEndNav({
       <div className="mt-8 mb-4 safe-area-bottom">
         <Link
           href={`/manga/${mangaSlug}`}
-          className="block glass-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
+          className="block surface-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
         >
           Kembali ke Detail Manga
         </Link>
@@ -37,7 +37,7 @@ function ChapterEndNav({
       {hasPrev && (
         <Link
           href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
-          className="flex-1 glass rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
+          className="flex-1 surface rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
         >
           ← Prev Ch
         </Link>
@@ -45,7 +45,7 @@ function ChapterEndNav({
       {hasNext && (
         <Link
           href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
-          className="flex-1 glass-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-purple-200"
+          className="flex-1 surface-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-purple-200"
         >
           Next →
         </Link>
@@ -323,13 +323,25 @@ export function ReaderEngine({
               animate="center"
               exit="exit"
               transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute inset-0 flex items-center justify-center p-2"
+              className={cn(
+                "absolute inset-0 flex justify-center",
+                settings.fitMode === "width"
+                  ? "items-start overflow-y-auto reader-hidden-scrollbar"
+                  : "items-center"
+              )}
             >
               <img
                 src={chapter.pages[currentPage]}
                 alt={`Page ${currentPage + 1}`}
-                className="max-h-full max-w-full object-contain"
                 draggable={false}
+                className={cn(
+                  "select-none",
+                  // "width" fills the screen edge to edge and scrolls vertically
+                  // when the page is taller than the viewport.
+                  settings.fitMode === "width" && "w-full h-auto my-auto",
+                  settings.fitMode === "height" && "h-full w-auto object-contain",
+                  settings.fitMode === "auto" && "max-h-full max-w-full object-contain"
+                )}
               />
             </motion.div>
           </AnimatePresence>
@@ -565,18 +577,18 @@ export function ReaderEngine({
                 {chapter.prevChapter && (
                   <Link
                     href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
-                    className="block glass rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
+                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
                   >
                     ← Chapter Sebelumnya
                   </Link>
                 )}
-                <div className="glass-elevated rounded-xl px-4 py-3 text-center text-sm font-medium text-purple-300">
+                <div className="surface-elevated rounded-xl px-4 py-3 text-center text-sm font-medium text-purple-300">
                   Chapter {chapter.chapterNumber}
                 </div>
                 {chapter.nextChapter && (
                   <Link
                     href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
-                    className="block glass rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
+                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
                   >
                     Chapter Selanjutnya →
                   </Link>

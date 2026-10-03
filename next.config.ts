@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "komiku.to",
       },
+      {
+        protocol: "https",
+        hostname: "**.media-amazon.com",
+      },
     ],
   },
 };

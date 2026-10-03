@@ -16,7 +16,7 @@ export function GlassCard({ children, className, elevated = false, hover = false
     <div
       className={cn(
         "rounded-2xl p-4",
-        elevated ? "glass-elevated" : "glass",
+        elevated ? "surface-elevated" : "surface",
         hover && "transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]",
         onClick && "cursor-pointer",
         className

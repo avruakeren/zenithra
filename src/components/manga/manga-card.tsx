@@ -18,7 +18,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
   if (layout === "rank") {
     return (
       <Link href={`/manga/${manga.slug}`} className="block">
-        <div className="glass rounded-2xl p-2.5 w-28 shrink-0 transition-all duration-300 hover:scale-105 active:scale-95">
+        <div className="surface rounded-2xl p-2.5 w-28 shrink-0 transition-all duration-300 hover:scale-105 active:scale-95">
           <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2">
             <Image
               src={manga.thumbnail}
@@ -43,7 +43,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
   if (layout === "list") {
     return (
       <Link href={`/manga/${manga.slug}`} className="block">
-        <div className="glass rounded-2xl p-3 flex gap-3 transition-all duration-300 hover:bg-white/[0.04] active:scale-[0.98]">
+        <div className="surface rounded-2xl p-3 flex gap-3 transition-all duration-300 hover:bg-white/[0.06] active:scale-[0.98]">
           <div className="relative w-16 h-22 rounded-lg overflow-hidden shrink-0">
             <Image
               src={manga.thumbnail}
@@ -73,7 +73,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
   return (
     <Link href={`/manga/${manga.slug}`} className="block">
       <div className="transition-all duration-300 hover:scale-[1.03] active:scale-[0.97]">
-        <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2 glass">
+        <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2 surface">
           <Image
             src={manga.thumbnail}
             alt={manga.title}

@@ -34,7 +34,7 @@ export function LastReadRow({ items, now }: LastReadRowProps) {
             href={`/manga/${item.slug}`}
             className="block w-28 shrink-0 transition-transform duration-200 active:scale-95"
           >
-            <div className="relative aspect-[3/4] rounded-xl overflow-hidden glass mb-2">
+            <div className="relative aspect-[3/4] rounded-xl overflow-hidden surface mb-2">
               {item.thumbnail ? (
                 <Image
                   src={item.thumbnail}
