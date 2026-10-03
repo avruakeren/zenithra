@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, use } from "react";
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { MangaDetail } from "@/lib/types";
@@ -135,7 +135,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
             {/* Manga Info */}
             <div className="flex gap-4 mb-5">
               <div className="relative w-32 h-44 rounded-xl overflow-hidden shrink-0 surface">
-                <Image
+                <SafeImage
                   src={manga.thumbnail}
                   alt={manga.title}
                   fill
@@ -265,3 +265,4 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
     </main>
   );
 }
+

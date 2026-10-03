@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import { GlassBadge } from "@/components/ui/glass-badge";
 import { Manga } from "@/lib/types";
 import { Eye } from "lucide-react";
@@ -20,7 +20,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
       <Link href={`/manga/${manga.slug}`} className="block">
         <div className="surface rounded-2xl p-2.5 w-28 shrink-0 transition-all duration-300 hover:scale-105 active:scale-95">
           <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2">
-            <Image
+            <SafeImage
               src={manga.thumbnail}
               alt={manga.title}
               fill
@@ -45,7 +45,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
       <Link href={`/manga/${manga.slug}`} className="block">
         <div className="surface rounded-2xl p-3 flex gap-3 transition-all duration-300 hover:bg-white/[0.06] active:scale-[0.98]">
           <div className="relative w-16 h-22 rounded-lg overflow-hidden shrink-0">
-            <Image
+            <SafeImage
               src={manga.thumbnail}
               alt={manga.title}
               fill
@@ -74,7 +74,7 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
     <Link href={`/manga/${manga.slug}`} className="block">
       <div className="transition-all duration-300 hover:scale-[1.03] active:scale-[0.97]">
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2 surface">
-          <Image
+          <SafeImage
             src={manga.thumbnail}
             alt={manga.title}
             fill
@@ -93,3 +93,4 @@ export function MangaCard({ manga, layout = "grid", showRank = false }: MangaCar
     </Link>
   );
 }
+

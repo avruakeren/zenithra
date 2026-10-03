@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import { BookOpen, History } from "lucide-react";
 import { cleanMangaTitle, timeAgo } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ export function LastReadRow({ items, now }: LastReadRowProps) {
           >
             <div className="relative aspect-[3/4] rounded-xl overflow-hidden surface mb-2">
               {item.thumbnail ? (
-                <Image
+                <SafeImage
                   src={item.thumbnail}
                   alt={item.title}
                   fill
@@ -60,3 +60,4 @@ export function LastReadRow({ items, now }: LastReadRowProps) {
     </section>
   );
 }
+

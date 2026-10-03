@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.media-amazon.com",
       },
+      {
+        protocol: "https",
+        hostname: "**.gstatic.com",
+      },
     ],
   },
 };
