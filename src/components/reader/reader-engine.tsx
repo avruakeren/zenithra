@@ -81,7 +81,24 @@ export function ReaderEngine({
   const [chapterListFailed, setChapterListFailed] = useState(false);
   const [chapterPickerOpen, setChapterPickerOpen] = useState(false);
   const [chapterQuery, setChapterQuery] = useState("");
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageContentRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const pinchRef = useRef<{
+    dist: number;
+    cx: number;
+    cy: number;
+    zoom: number;
+    panX: number;
+    panY: number;
+    centerX: number;
+    centerY: number;
+  } | null>(null);
+  const panTrackRef = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
   const chapterListBoxRef = useRef<HTMLDivElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
@@ -182,8 +199,8 @@ export function ReaderEngine({
   }, [currentPage, isRTL, router, chapter.prevChapter, mangaSlug]);
 
   const { onTouchStart, onTouchEnd } = useSwipeGesture({
-    onSwipeLeft: isScroll ? () => undefined : isRTL ? goPrev : goNext,
-    onSwipeRight: isScroll ? () => undefined : isRTL ? goNext : goPrev,
+    onSwipeLeft: isScroll || zoom > 1 ? () => undefined : isRTL ? goPrev : goNext,
+    onSwipeRight: isScroll || zoom > 1 ? () => undefined : isRTL ? goNext : goPrev,
     onDoubleTapCenter: () => setShowUI((visible) => !visible),
     enabled: !showSettings && !showChapterList,
   });
@@ -221,8 +238,146 @@ export function ReaderEngine({
       page: currentPage,
       total: totalPages,
       timestamp: Date.now(),
-    }));
+      }));
   }, [currentPage, totalPages, mangaSlug]);
+
+  // Reset zoom + pan saat pindah halaman / ganti mode supaya nggak nyangkut.
+  const [resetKey, setResetKey] = useState(`${currentPage}-${isScroll}`);
+  const nextResetKey = `${currentPage}-${isScroll}`;
+  if (nextResetKey !== resetKey) {
+    setResetKey(nextResetKey);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }
+
+  // Mirror zoom/pan ke ref — biar touch handler manual (detached listener)
+  // selalu baca nilai terbaru tanpa re-attach listener.
+  useEffect(() => {
+    zoomRef.current = zoom;
+    panRef.current = pan;
+  }, [zoom, pan]);
+
+  // Pinch-to-zoom (2 jari) + pan 1 jari saat zoom aktif — Manga/Komik doang.
+  // Webtoon skip: vertikal scroll, prefetch nggak butuh zoom.
+  useEffect(() => {
+    const el = pageContentRef.current;
+    if (!el || isScroll) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const rect = imgRef.current?.getBoundingClientRect();
+        pinchRef.current = {
+          dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+          cx: (a.clientX + b.clientX) / 2,
+          cy: (a.clientY + b.clientY) / 2,
+          zoom: zoomRef.current,
+          panX: panRef.current.x,
+          panY: panRef.current.y,
+          centerX: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+          centerY: rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+        };
+        panTrackRef.current = null;
+      } else if (e.touches.length === 1 && zoomRef.current > 1) {
+        panTrackRef.current = {
+          sx: e.touches[0].clientX,
+          sy: e.touches[0].clientY,
+          px: panRef.current.x,
+          py: panRef.current.y,
+        };
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (pinchRef.current && e.touches.length === 2) {
+        e.preventDefault();
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        const cx = (a.clientX + b.clientX) / 2;
+        const cy = (a.clientY + b.clientY) / 2;
+        const k = dist / pinchRef.current.dist;
+        const nextZoom = Math.min(4, Math.max(1, pinchRef.current.zoom * k));
+        if (nextZoom <= 1) {
+          zoomRef.current = 1;
+          setZoom(1);
+          panRef.current = { x: 0, y: 0 };
+          setPan({ x: 0, y: 0 });
+          return;
+        }
+        const ratio = nextZoom / pinchRef.current.zoom;
+        const nx =
+          cx - pinchRef.current.centerX + pinchRef.current.panX -
+          ratio * (pinchRef.current.cx - pinchRef.current.centerX);
+        const ny =
+          cy - pinchRef.current.centerY + pinchRef.current.panY -
+          ratio * (pinchRef.current.cy - pinchRef.current.centerY);
+        zoomRef.current = nextZoom;
+        setZoom(nextZoom);
+        panRef.current = { x: nx, y: ny };
+        setPan({ x: nx, y: ny });
+      } else if (panTrackRef.current && e.touches.length === 1 && zoomRef.current > 1) {
+        e.preventDefault();
+        const nx = panTrackRef.current.px + (e.touches[0].clientX - panTrackRef.current.sx);
+        const ny = panTrackRef.current.py + (e.touches[0].clientY - panTrackRef.current.sy);
+        panRef.current = { x: nx, y: ny };
+        setPan({ x: nx, y: ny });
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = null;
+      if (e.touches.length === 0) panTrackRef.current = null;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [isScroll]);
+
+  // Preload every page in the current chapter (in page order) so paging feels
+  // instant. Manga/comic only — webtoon renders and lazy-loads all images in
+  // the DOM already, so it doesn't need this prefetch.
+  useEffect(() => {
+    if (isScroll || totalPages === 0) return;
+
+    let cancelled = false;
+    let index = 0;
+
+    const loadOne = (url: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = url;
+      });
+
+    const worker = async () => {
+      while (index < chapter.pages.length && !cancelled) {
+        const url = chapter.pages[index++];
+        await loadOne(url);
+      }
+    };
+
+    // Two workers run concurrently: enough to actually pace the download
+    // but light enough not to hammer Komiku's CDN.
+    const workers = Array.from(
+      { length: Math.min(2, chapter.pages.length) },
+      () => worker()
+    );
+    Promise.all(workers);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chapter.pages, isScroll, totalPages]);
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -313,7 +468,11 @@ export function ReaderEngine({
         </div>
       ) : (
         /* Page Mode - Manga/Comic */
-        <div className="flex-1 relative overflow-hidden">
+        <div
+          ref={pageContentRef}
+          className="flex-1 relative overflow-hidden"
+          style={{ touchAction: zoom > 1 ? "none" : "pan-y" }}
+        >
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
               key={currentPage}
@@ -331,9 +490,15 @@ export function ReaderEngine({
               )}
             >
               <img
+                ref={imgRef}
                 src={chapter.pages[currentPage]}
                 alt={`Page ${currentPage + 1}`}
                 draggable={false}
+                fetchPriority="high"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: "center center",
+                }}
                 className={cn(
                   "select-none",
                   // "width" fills the screen edge to edge and scrolls vertically
@@ -346,8 +511,8 @@ export function ReaderEngine({
             </motion.div>
           </AnimatePresence>
 
-          {/* Tap Zones (when UI is hidden) */}
-          {!showUI && (
+          {/* Tap Zones (when UI is hidden and not zoomed) */}
+          {!showUI && zoom <= 1 && (
             <div className="absolute inset-0 z-40 flex">
               <button
                 onClick={isRTL ? goNext : goPrev}
