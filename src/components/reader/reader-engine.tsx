@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { motion, AnimatePresence, type Transition, type Variants } from "framer-motion";
+import { cn, READER_CANVAS } from "@/lib/utils";
 import { useSwipeGesture } from "./touch-gesture";
 import { Chapter, ChapterPages, ReadingSettings } from "@/lib/types";
 import { ChevronLeft, ChevronRight, ChevronDown, Check, Search, Settings, List, ArrowLeft, X } from "lucide-react";
@@ -105,6 +105,8 @@ export function ReaderEngine({
   const totalPages = chapter.pages.length;
   const isRTL = settings.mode === "manga";
   const isScroll = settings.mode === "webtoon";
+  // Arah zona ketuk kiri/kanan (bisa dibalik buat kidal / tangan kiri).
+  const leftIsNext = settings.flipTap ? !isRTL : isRTL;
 
   const chapterListLoading = showChapterList && !chapterList && !chapterListFailed;
   const sortedChapterList = useMemo(
@@ -391,11 +393,28 @@ export function ReaderEngine({
     }),
   };
 
+  const fadeVariants = {
+    enter: { opacity: 0 },
+    center: { opacity: 1 },
+    exit: { opacity: 0 },
+  };
+
+  const pageVariants: Variants =
+    settings.transition === "fade" ? fadeVariants : slideVariants;
+  const pageTransition: Transition =
+    settings.transition === "fade"
+      ? { duration: 0.18 }
+      : { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] };
+
   return (
     <div
       ref={containerRef}
-      className="reader-page reader-shell z-50 bg-[#050208] flex flex-col"
-      style={{ filter: `brightness(${settings.brightness})` }}
+      data-canvas={settings.background}
+      className="reader-page reader-shell z-50 flex flex-col"
+      style={{
+        backgroundColor: READER_CANVAS[settings.background],
+        filter: `brightness(${settings.brightness})`,
+      }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -477,11 +496,11 @@ export function ReaderEngine({
             <motion.div
               key={currentPage}
               custom={direction}
-              variants={slideVariants}
+              variants={pageVariants}
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              transition={pageTransition}
               className={cn(
                 "absolute inset-0 flex justify-center",
                 settings.fitMode === "width"
@@ -504,8 +523,12 @@ export function ReaderEngine({
                   // "width" fills the screen edge to edge and scrolls vertically
                   // when the page is taller than the viewport.
                   settings.fitMode === "width" && "w-full h-auto my-auto",
-                  settings.fitMode === "height" && "h-full w-auto object-contain",
-                  settings.fitMode === "auto" && "max-h-full max-w-full object-contain"
+                  // "height" scales to the viewport height — max-w-full keeps
+                  // landscape pages from being cropped off-screen.
+                  settings.fitMode === "height" &&
+                    "h-full w-auto max-w-full object-contain",
+                  settings.fitMode === "auto" &&
+                    "max-h-full max-w-full object-contain"
                 )}
               />
             </motion.div>
@@ -515,9 +538,9 @@ export function ReaderEngine({
           {!showUI && zoom <= 1 && (
             <div className="absolute inset-0 z-40 flex">
               <button
-                onClick={isRTL ? goNext : goPrev}
+                onClick={leftIsNext ? goNext : goPrev}
                 className="w-1/3 h-full"
-                aria-label={isRTL ? "Selanjutnya" : "Sebelumnya"}
+                aria-label={leftIsNext ? "Selanjutnya" : "Sebelumnya"}
               />
               <button
                 onDoubleClick={() => setShowUI(true)}
@@ -525,9 +548,9 @@ export function ReaderEngine({
                 aria-label="Tampilkan navigasi"
               />
               <button
-                onClick={isRTL ? goPrev : goNext}
+                onClick={leftIsNext ? goPrev : goNext}
                 className="w-1/3 h-full"
-                aria-label={isRTL ? "Sebelumnya" : "Selanjutnya"}
+                aria-label={leftIsNext ? "Sebelumnya" : "Selanjutnya"}
               />
             </div>
           )}
@@ -595,7 +618,7 @@ export function ReaderEngine({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full glass-elevated rounded-t-3xl p-6 safe-area-bottom"
+              className="w-full glass-elevated rounded-t-3xl p-6 safe-area-bottom max-h-[80vh] overflow-y-auto reader-hidden-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-6" />
@@ -643,42 +666,131 @@ export function ReaderEngine({
                 />
               </div>
 
-              {/* Fit Mode */}
+              {/* Fit Mode — hanya mode halaman (Manga/Komik) */}
+              {!isScroll && (
+                <div className="mb-5">
+                  <label className="text-xs text-text-muted mb-2 block">Mode Fit</label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: "width", label: "Lebar", desc: "Penuh + scroll" },
+                      { value: "height", label: "Tinggi", desc: "Pas tinggi layar" },
+                      { value: "auto", label: "Auto", desc: "Muat seluruh halaman" },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => onSettingsChange({ fitMode: opt.value })}
+                        className={cn(
+                          "flex-1 py-2.5 rounded-xl text-center transition-all duration-300",
+                          settings.fitMode === opt.value
+                            ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
+                            : "bg-white/5 border border-white/5 text-text-muted"
+                        )}
+                      >
+                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Background */}
               <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">Mode Fit</label>
+                <label className="text-xs text-text-muted mb-2 block">Warna Latar</label>
                 <div className="flex gap-2">
-                  {(["width", "height", "auto"] as const).map((mode) => (
+                  {([
+                    { value: "black", label: "Hitam", swatch: READER_CANVAS.black },
+                    { value: "gray", label: "Abu", swatch: READER_CANVAS.gray },
+                    { value: "krem", label: "Krem", swatch: READER_CANVAS.krem },
+                  ] as const).map((opt) => (
                     <button
-                      key={mode}
-                      onClick={() => onSettingsChange({ fitMode: mode })}
+                      key={opt.value}
+                      onClick={() => onSettingsChange({ background: opt.value })}
                       className={cn(
-                        "flex-1 py-2.5 rounded-xl text-sm transition-all duration-300",
-                        settings.fitMode === mode
+                        "flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all duration-300",
+                        settings.background === opt.value
                           ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
                           : "bg-white/5 border border-white/5 text-text-muted"
                       )}
                     >
-                      {mode === "width" ? "Lebar" : mode === "height" ? "Tinggi" : "Auto"}
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-white/25 shrink-0"
+                        style={{ backgroundColor: opt.swatch }}
+                      />
+                      {opt.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Page Gap */}
+              {/* Page Transition */}
               <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">
-                  Jarak Halaman · {settings.gap}px
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="32"
-                  step="4"
-                  value={settings.gap}
-                  onChange={(e) => onSettingsChange({ gap: parseInt(e.target.value) })}
-                  className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-purple-500"
-                />
+                <label className="text-xs text-text-muted mb-2 block">Animasi Halaman</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: "slide", label: "Geser", desc: "Geser ke samping" },
+                    { value: "fade", label: "Fade", desc: "Timbul pelan" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => onSettingsChange({ transition: opt.value })}
+                      className={cn(
+                        "flex-1 py-2.5 rounded-xl text-center transition-all duration-300",
+                        settings.transition === opt.value
+                          ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
+                          : "bg-white/5 border border-white/5 text-text-muted"
+                      )}
+                    >
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-text-dim mt-1.5">Hanya untuk mode Manga/Komik</p>
               </div>
+
+              {/* Flip tap zones */}
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <span className="text-sm">Balik Arah Ketuk</span>
+                  <p className="text-[10px] text-text-dim mt-0.5">
+                    Zona kiri ↔ kanan · Manga/Komik
+                  </p>
+                </div>
+                <button
+                  onClick={() => onSettingsChange({ flipTap: !settings.flipTap })}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all duration-300 shrink-0",
+                    settings.flipTap ? "bg-purple-600" : "bg-white/10"
+                  )}
+                  aria-pressed={settings.flipTap}
+                >
+                  <div
+                    className={cn(
+                      "w-5 h-5 rounded-full bg-white transition-transform duration-300",
+                      settings.flipTap ? "translate-x-6" : "translate-x-0.5"
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* Page Gap — hanya webtoon */}
+              {isScroll && (
+                <div className="mb-5">
+                  <label className="text-xs text-text-muted mb-2 block">
+                    Jarak Halaman · {settings.gap}px
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="32"
+                    step="4"
+                    value={settings.gap}
+                    onChange={(e) => onSettingsChange({ gap: parseInt(e.target.value) })}
+                    className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-purple-500"
+                  />
+                </div>
+              )}
 
               {/* Page Number Toggle */}
               <div className="flex items-center justify-between">

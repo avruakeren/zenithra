@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, use } from "react";
 import { ReaderEngine } from "@/components/reader/reader-engine";
 import { ChapterPages, ReadingSettings } from "@/lib/types";
-import { getReadingSettings, setReadingSettings, addToHistory } from "@/lib/bookmark";
-import { cleanMangaTitle } from "@/lib/utils";
+import { getReadingSettings, setReadingSettings, addToHistory, markChapterRead } from "@/lib/bookmark";
+import { cleanMangaTitle, READER_CANVAS } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 
 export default function ChapterReaderPage({
@@ -42,6 +42,9 @@ export default function ChapterReaderPage({
         setLoadedKey(chapter);
         setError(null);
 
+        // Mark chapter as read for the chapter list indicator
+        markChapterRead(slug, data.chapterNumber);
+
         // Save to history
         addToHistory(
           {
@@ -71,7 +74,11 @@ export default function ChapterReaderPage({
 
   if (error) {
     return (
-      <div className="reader-shell z-50 bg-[#050208] flex items-center justify-center px-8">
+      <div
+        data-canvas={settings.background}
+        style={{ backgroundColor: READER_CANVAS[settings.background] }}
+        className="reader-shell z-50 flex items-center justify-center px-8"
+      >
         <div className="text-center surface rounded-2xl p-8">
           <BookOpen size={40} className="mx-auto mb-4 text-text-dim" />
           <p className="text-sm text-text-muted mb-4">{error}</p>
@@ -88,7 +95,11 @@ export default function ChapterReaderPage({
 
   if (loading || isStale || !chapterData) {
     return (
-      <div className="reader-shell z-50 bg-[#050208] flex items-center justify-center">
+      <div
+        data-canvas={settings.background}
+        style={{ backgroundColor: READER_CANVAS[settings.background] }}
+        className="reader-shell z-50 flex items-center justify-center"
+      >
         <div className="text-center">
           <div className="w-12 h-12 rounded-full border-2 border-purple-500/20 border-t-purple-500 animate-spin mx-auto mb-4" />
           <p className="text-sm text-text-muted">Memuat chapter...</p>

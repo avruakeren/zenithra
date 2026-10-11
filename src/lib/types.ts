@@ -50,6 +50,12 @@ export interface ReadingSettings {
   fitMode: "width" | "height" | "auto";
   gap: number;
   showPageNumber: boolean;
+  /** Warna kanvas di balik halaman komik. */
+  background: "black" | "gray" | "krem";
+  /** Transisi antar halaman di mode Manga/Komik. */
+  transition: "slide" | "fade";
+  /** Balik arah zona ketuk kiri/kanan. */
+  flipTap: boolean;
 }
 
 export interface SearchResult {

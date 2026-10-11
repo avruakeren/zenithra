@@ -343,6 +343,19 @@ select:focus-visible {
   height: 100dvh;
 }
 
+/* Kanvas terang (tema Krem): chrome reader — bar atas/bawah, panel
+   pengaturan, kartu surface — dibikin panel gelap solid di atas canvas,
+   supaya teks terangnya tetap kontras (token glass bawaan nyaris
+   transparan, jadi di atas krem teks putih bakal hilang). */
+.reader-shell[data-canvas="krem"] {
+  --glass-bg: rgba(14, 16, 30, 0.78);
+  --glass-bg-elevated: rgba(14, 16, 30, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-elevated: rgba(255, 255, 255, 0.16);
+  --surface-bg: rgba(14, 16, 30, 0.84);
+  --surface-bg-elevated: rgba(14, 16, 30, 0.92);
+}
+
 /* ===== SKELETON LOADING ===== */
 
 .skeleton {

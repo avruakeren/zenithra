@@ -9,7 +9,7 @@ import { ChapterList } from "@/components/manga/chapter-list";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassBadge } from "@/components/ui/glass-badge";
 import { ChapterListSkeleton } from "@/components/shared/skeleton";
-import { addBookmark, removeBookmark, isBookmarked, getHistory } from "@/lib/bookmark";
+import { addBookmark, removeBookmark, isBookmarked, getHistory, getReadChapters } from "@/lib/bookmark";
 import { ArrowLeft, Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Play } from "lucide-react";
 
 function parseChapterNumber(value: string): number {
@@ -25,6 +25,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
   const [lastReadChapter, setLastReadChapter] = useState<string | null>(null);
   const [lastReadChapterSlug, setLastReadChapterSlug] = useState<string | null>(null);
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
+  const [readChapters, setReadChapters] = useState<string[]>([]);
 
   const sortedChapters = useMemo(() => {
     if (!manga) return [];
@@ -56,6 +57,9 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
         const historyEntry = getHistory().find((h) => h.slug === slug);
         setLastReadChapter(historyEntry?.lastChapter ?? null);
         setLastReadChapterSlug(historyEntry?.lastChapterSlug ?? null);
+        setReadChapters(
+          Array.isArray(data?.chapters) ? getReadChapters(slug, data.chapters) : []
+        );
       } catch (err) {
         console.error("Failed to fetch manga:", err);
       } finally {
@@ -144,10 +148,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold leading-tight mb-2">{manga.title}</h1>
-                {manga.alternativeTitle && (
-                  <p className="text-xs text-text-dim mb-2">{manga.alternativeTitle}</p>
-                )}
+                <h1 className="text-2xl font-bold leading-tight mb-2">{manga.title}</h1>
                 <div className="flex items-center gap-2 mb-3">
                   <GlassBadge variant="accent">{manga.type}</GlassBadge>
                   <GlassBadge>{manga.status}</GlassBadge>
@@ -252,7 +253,12 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
               <h2 className="text-sm font-semibold mb-3 text-text-muted">
                 Daftar Chapter ({manga.chapters.length})
               </h2>
-              <ChapterList chapters={manga.chapters} mangaSlug={slug} />
+              <ChapterList
+                chapters={manga.chapters}
+                mangaSlug={slug}
+                readChapters={readChapters}
+                currentSlug={lastReadChapterSlug}
+              />
             </section>
             </motion.div>
           </>

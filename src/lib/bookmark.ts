@@ -1,9 +1,11 @@
-import { Manga, ReadingSettings } from "./types";
+import { Chapter, Manga, ReadingSettings } from "./types";
 
 const BOOKMARK_KEY = "zenithra_bookmarks";
 const HISTORY_KEY = "zenithra_history";
 const SETTINGS_KEY = "zenithra_reading_settings";
 const RECENT_SEARCH_KEY = "zenithra_recent_searches";
+const READ_KEY_PREFIX = "zenithra_read_";
+const MAX_READ_ENTRIES = 1000;
 
 export function getBookmarks(): Manga[] {
   if (typeof window === "undefined") return [];
@@ -87,12 +89,85 @@ export function getHistory(): (Manga & { lastChapter: string; lastChapterSlug: s
   }
 }
 
+// ---- Read chapters log -------------------------------------------------
+// Menyimpan daftar nomor chapter yang pernah dibuka per manga,
+// biar daftar chapter bisa nandain mana yang sudah / belum dibaca.
+
+function readKey(slug: string): string {
+  return `${READ_KEY_PREFIX}${slug}`;
+}
+
+function readRaw(slug: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(readKey(slug));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((n): n is string => typeof n === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRead(slug: string, numbers: string[]): void {
+  localStorage.setItem(
+    readKey(slug),
+    JSON.stringify(numbers.slice(-MAX_READ_ENTRIES))
+  );
+}
+
+function normalizeChapterNumber(value: string): number {
+  const parsed = parseFloat(
+    value.replace(/^chapter\s*/i, "").replace(/^ch\s*/i, "")
+  );
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function markChapterRead(slug: string, chapterNumber: string): void {
+  if (typeof window === "undefined") return;
+  const normalized = chapterNumber.trim();
+  if (!normalized) return;
+
+  const current = readRaw(slug);
+  if (current.includes(normalized)) return;
+  writeRead(slug, [...current, normalized]);
+}
+
+export function getReadChapters(slug: string, chapters: Chapter[] = []): string[] {
+  const stored = readRaw(slug);
+  if (stored.length > 0) return stored;
+
+  // Fallback untuk data lama: history cuma nyimpan chapter terakhir,
+  // jadi anggap semua chapter sebelumnya sudah dibaca.
+  const historyEntry = getHistory().find((h) => h.slug === slug);
+  const lastNumber = normalizeChapterNumber(historyEntry?.lastChapter ?? "");
+  if (lastNumber <= 0 || chapters.length === 0) return [];
+
+  const seeded = chapters
+    .filter((ch) => {
+      const number = normalizeChapterNumber(ch.number);
+      return number > 0 && number <= lastNumber;
+    })
+    .map((ch) => ch.number.trim())
+    .filter((number, index, all) => all.indexOf(number) === index);
+
+  // Persist hasil seeding sekali biar nggak balik ke "belum dibaca"
+  // begitu ada chapter baru yang ditandai lewat markChapterRead.
+  if (seeded.length > 0) writeRead(slug, seeded);
+
+  return seeded;
+}
+
 const DEFAULT_SETTINGS: ReadingSettings = {
   mode: "manga",
   brightness: 1,
   fitMode: "width",
   gap: 8,
   showPageNumber: true,
+  background: "black",
+  transition: "slide",
+  flipTap: false,
 };
 
 export function getReadingSettings(): ReadingSettings {
