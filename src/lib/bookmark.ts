@@ -164,7 +164,6 @@ const DEFAULT_SETTINGS: ReadingSettings = {
   brightness: 1,
   fitMode: "width",
   gap: 8,
-  showPageNumber: true,
   background: "black",
   transition: "slide",
   flipTap: false,

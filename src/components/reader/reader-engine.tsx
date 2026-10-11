@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, type Transition, type Variants } from "framer-motion";
@@ -8,6 +8,10 @@ import { cn, READER_CANVAS } from "@/lib/utils";
 import { useSwipeGesture } from "./touch-gesture";
 import { Chapter, ChapterPages, ReadingSettings } from "@/lib/types";
 import { ChevronLeft, ChevronRight, ChevronDown, Check, Search, Settings, List, ArrowLeft, X } from "lucide-react";
+
+// Cache daftar chapter per manga (per sesi). Dipakai buat indikator
+// "Ch. x/y" di bar bawah dan buat panel daftar chapter.
+const chapterListCache = new Map<string, Chapter[]>();
 
 function ChapterEndNav({
   chapter,
@@ -37,19 +41,164 @@ function ChapterEndNav({
       {hasPrev && (
         <Link
           href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
-          className="flex-1 surface rounded-2xl px-4 py-3.5 text-center text-sm font-medium"
+          className="flex-1 surface rounded-2xl px-4 py-3.5 text-center text-sm font-medium flex items-center justify-center gap-1.5"
         >
-          ← Prev Ch
+          <ChevronLeft size={14} />
+          Prev Ch
         </Link>
       )}
       {hasNext && (
         <Link
           href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
-          className="flex-1 surface-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-purple-200"
+          className="flex-1 surface-elevated rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-purple-200 flex items-center justify-center gap-1.5"
         >
-          Next →
+          Next Ch
+          <ChevronRight size={14} />
         </Link>
       )}
+    </div>
+  );
+}
+
+// ===== Settings panel primitives =====
+// Satu sumber styling buat seluruh isi sheet pengaturan, biar pola label
+// dan state aktif/nonaktif seragam antar kontrol.
+
+const SEG_ACTIVE = "bg-purple-600/20 border border-purple-500/30 text-purple-300";
+const SEG_IDLE = "bg-white/5 border border-white/5 text-text-muted";
+
+function SettingSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-2 pt-4 border-t border-white/5 first:mt-0 first:pt-0 first:border-t-0">
+      <h4 className="text-[10px] uppercase tracking-[0.15em] text-text-dim mb-3">
+        {title}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
+interface SegmentedOption<T extends string> {
+  value: T;
+  label: string;
+  desc?: ReactNode;
+  swatch?: string;
+}
+
+function SettingSegmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly SegmentedOption<T>[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="mb-5">
+      <label className="text-xs text-text-muted mb-2 block">{label}</label>
+      <div className="flex gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "flex-1 py-2.5 rounded-xl flex flex-col items-center justify-center transition-all duration-300",
+              value === opt.value ? SEG_ACTIVE : SEG_IDLE
+            )}
+          >
+            {opt.swatch && (
+              <span
+                className="w-3.5 h-3.5 rounded-full border border-white/25 mb-1"
+                style={{ backgroundColor: opt.swatch }}
+              />
+            )}
+            <p className="text-sm font-medium">{opt.label}</p>
+            {opt.desc && (
+              <p className="text-[10px] mt-0.5 opacity-60 flex items-center justify-center gap-1">
+                {opt.desc}
+              </p>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SettingToggle({
+  label,
+  desc,
+  value,
+  onChange,
+}: {
+  label: string;
+  desc?: ReactNode;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <span className="text-sm">{label}</span>
+        {desc && (
+          <p className="text-[10px] text-text-dim mt-0.5 flex items-center gap-1">{desc}</p>
+        )}
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        aria-pressed={value}
+        className={cn(
+          "w-12 h-6 rounded-full transition-all duration-300 shrink-0",
+          value ? "bg-purple-600" : "bg-white/10"
+        )}
+      >
+        <div
+          className={cn(
+            "w-5 h-5 rounded-full bg-white transition-transform duration-300",
+            value ? "translate-x-6" : "translate-x-0.5"
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SettingSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="mb-5">
+      <label className="text-xs text-text-muted mb-2 block">{label}</label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-purple-500"
+      />
     </div>
   );
 }
@@ -77,7 +226,9 @@ export function ReaderEngine({
   const [direction, setDirection] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showChapterList, setShowChapterList] = useState(false);
-  const [chapterList, setChapterList] = useState<Chapter[] | null>(null);
+  const [chapterList, setChapterList] = useState<Chapter[] | null>(
+    () => chapterListCache.get(mangaSlug) ?? null
+  );
   const [chapterListFailed, setChapterListFailed] = useState(false);
   const [chapterPickerOpen, setChapterPickerOpen] = useState(false);
   const [chapterQuery, setChapterQuery] = useState("");
@@ -129,6 +280,15 @@ export function ReaderEngine({
     sortedChapterList.find((ch) => ch.slug === currentChapterSlug)?.number ??
     chapter.chapterNumber;
 
+  const latestChapterNumber = sortedChapterList.length
+    ? sortedChapterList[sortedChapterList.length - 1].number
+    : "";
+
+  const chapterProgressLabel =
+    latestChapterNumber && latestChapterNumber !== currentChapterNumber
+      ? `Ch. ${currentChapterNumber}/${latestChapterNumber}`
+      : `Ch. ${currentChapterNumber}`;
+
   const closeChapterPicker = useCallback(() => {
     setChapterPickerOpen(false);
     setChapterQuery("");
@@ -155,13 +315,15 @@ export function ReaderEngine({
   }, [chapterPickerOpen, closeChapterPicker]);
 
   useEffect(() => {
-    if (!showChapterList || chapterList || chapterListFailed) return;
+    if (chapterList || chapterListFailed) return;
 
     let cancelled = false;
     fetch(`/api/manga?slug=${encodeURIComponent(mangaSlug)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("gagal"))))
       .then((data: { chapters?: Chapter[] }) => {
-        if (!cancelled) setChapterList(data.chapters ?? []);
+        const chapters = data.chapters ?? [];
+        chapterListCache.set(mangaSlug, chapters);
+        if (!cancelled) setChapterList(chapters);
       })
       .catch(() => {
         if (!cancelled) setChapterListFailed(true);
@@ -170,7 +332,7 @@ export function ReaderEngine({
     return () => {
       cancelled = true;
     };
-  }, [showChapterList, chapterList, chapterListFailed, mangaSlug]);
+  }, [chapterList, chapterListFailed, mangaSlug]);
 
   const goNext = useCallback(() => {
     if (currentPage < totalPages - 1) {
@@ -579,7 +741,7 @@ export function ReaderEngine({
                   </button>
                   <div className="flex-1 text-center">
                     <span className="text-sm font-mono font-medium text-text-muted">
-                      {currentPage + 1} / {totalPages}
+                      {chapterProgressLabel}
                     </span>
                   </div>
                   <button
@@ -594,7 +756,7 @@ export function ReaderEngine({
               {isScroll && (
                 <div className="w-full text-center py-1">
                   <span className="text-xs font-mono text-text-muted">
-                    {totalPages} halaman
+                    {chapterProgressLabel}
                   </span>
                 </div>
               )}
@@ -622,194 +784,126 @@ export function ReaderEngine({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-6" />
-              <h3 className="text-lg font-semibold mb-5">Pengaturan Baca</h3>
+              <h3 className="text-lg font-semibold mb-1">Pengaturan Baca</h3>
 
-              {/* Reading Mode */}
-              <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">Gaya Baca</label>
-                <div className="flex gap-2">
-                  {([
-                    { value: "manga", label: "Manga", desc: "Kanan → Kiri" },
-                    { value: "comic", label: "Komik", desc: "Kiri → Kanan" },
-                    { value: "webtoon", label: "Webtoon", desc: "Scroll Vertikal" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => onSettingsChange({ mode: opt.value })}
-                      className={cn(
-                        "flex-1 py-3 rounded-xl text-center transition-all duration-300",
-                        settings.mode === opt.value
-                          ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
-                          : "bg-white/5 border border-white/5 text-text-muted"
-                      )}
-                    >
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Brightness */}
-              <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">
-                  Kecerahan · {Math.round(settings.brightness * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0.3"
-                  max="1.5"
-                  step="0.05"
-                  value={settings.brightness}
-                  onChange={(e) => onSettingsChange({ brightness: parseFloat(e.target.value) })}
-                  className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-purple-500"
+              {/* ===== Mode Baca ===== */}
+              <SettingSection title="Mode Baca">
+                <SettingSegmented
+                  label="Gaya Baca"
+                  value={settings.mode}
+                  onChange={(mode) => onSettingsChange({ mode })}
+                  options={[
+                    {
+                      value: "manga",
+                      label: "Manga",
+                      desc: (
+                        <>
+                          <ChevronLeft size={10} />
+                          Ke kiri
+                        </>
+                      ),
+                    },
+                    {
+                      value: "comic",
+                      label: "Komik",
+                      desc: (
+                        <>
+                          <ChevronRight size={10} />
+                          Ke kanan
+                        </>
+                      ),
+                    },
+                    {
+                      value: "webtoon",
+                      label: "Webtoon",
+                      desc: (
+                        <>
+                          <ChevronDown size={10} />
+                          Vertikal
+                        </>
+                      ),
+                    },
+                  ]}
                 />
-              </div>
 
-              {/* Fit Mode — hanya mode halaman (Manga/Komik) */}
-              {!isScroll && (
-                <div className="mb-5">
-                  <label className="text-xs text-text-muted mb-2 block">Mode Fit</label>
-                  <div className="flex gap-2">
-                    {([
+                {/* Fit Mode — hanya mode halaman (Manga/Komik) */}
+                {!isScroll && (
+                  <SettingSegmented
+                    label="Mode Fit"
+                    value={settings.fitMode}
+                    onChange={(fitMode) => onSettingsChange({ fitMode })}
+                    options={[
                       { value: "width", label: "Lebar", desc: "Penuh + scroll" },
                       { value: "height", label: "Tinggi", desc: "Pas tinggi layar" },
                       { value: "auto", label: "Auto", desc: "Muat seluruh halaman" },
-                    ] as const).map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => onSettingsChange({ fitMode: opt.value })}
-                        className={cn(
-                          "flex-1 py-2.5 rounded-xl text-center transition-all duration-300",
-                          settings.fitMode === opt.value
-                            ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
-                            : "bg-white/5 border border-white/5 text-text-muted"
-                        )}
-                      >
-                        <p className="text-sm font-medium">{opt.label}</p>
-                        <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    ]}
+                  />
+                )}
 
-              {/* Background */}
-              <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">Warna Latar</label>
-                <div className="flex gap-2">
-                  {([
+                {/* Page Gap — hanya webtoon */}
+                {isScroll && (
+                  <SettingSlider
+                    label={`Jarak Halaman · ${settings.gap}px`}
+                    value={settings.gap}
+                    min={0}
+                    max={32}
+                    step={4}
+                    onChange={(gap) => onSettingsChange({ gap })}
+                  />
+                )}
+              </SettingSection>
+
+              {/* ===== Tampilan ===== */}
+              <SettingSection title="Tampilan">
+                <SettingSegmented
+                  label="Warna Latar"
+                  value={settings.background}
+                  onChange={(background) => onSettingsChange({ background })}
+                  options={[
                     { value: "black", label: "Hitam", swatch: READER_CANVAS.black },
                     { value: "gray", label: "Abu", swatch: READER_CANVAS.gray },
                     { value: "krem", label: "Krem", swatch: READER_CANVAS.krem },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => onSettingsChange({ background: opt.value })}
-                      className={cn(
-                        "flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all duration-300",
-                        settings.background === opt.value
-                          ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
-                          : "bg-white/5 border border-white/5 text-text-muted"
-                      )}
-                    >
-                      <span
-                        className="w-3.5 h-3.5 rounded-full border border-white/25 shrink-0"
-                        style={{ backgroundColor: opt.swatch }}
-                      />
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  ]}
+                />
 
-              {/* Page Transition */}
-              <div className="mb-5">
-                <label className="text-xs text-text-muted mb-2 block">Animasi Halaman</label>
-                <div className="flex gap-2">
-                  {([
-                    { value: "slide", label: "Geser", desc: "Geser ke samping" },
-                    { value: "fade", label: "Fade", desc: "Timbul pelan" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => onSettingsChange({ transition: opt.value })}
-                      className={cn(
-                        "flex-1 py-2.5 rounded-xl text-center transition-all duration-300",
-                        settings.transition === opt.value
-                          ? "bg-purple-600/20 border border-purple-500/30 text-purple-300"
-                          : "bg-white/5 border border-white/5 text-text-muted"
-                      )}
-                    >
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-text-dim mt-1.5">Hanya untuk mode Manga/Komik</p>
-              </div>
+                <SettingSlider
+                  label={`Kecerahan · ${Math.round(settings.brightness * 100)}%`}
+                  value={settings.brightness}
+                  min={0.3}
+                  max={1.5}
+                  step={0.05}
+                  onChange={(brightness) => onSettingsChange({ brightness })}
+                />
 
-              {/* Flip tap zones */}
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <span className="text-sm">Balik Arah Ketuk</span>
-                  <p className="text-[10px] text-text-dim mt-0.5">
-                    Zona kiri ↔ kanan · Manga/Komik
-                  </p>
-                </div>
-                <button
-                  onClick={() => onSettingsChange({ flipTap: !settings.flipTap })}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all duration-300 shrink-0",
-                    settings.flipTap ? "bg-purple-600" : "bg-white/10"
-                  )}
-                  aria-pressed={settings.flipTap}
-                >
-                  <div
-                    className={cn(
-                      "w-5 h-5 rounded-full bg-white transition-transform duration-300",
-                      settings.flipTap ? "translate-x-6" : "translate-x-0.5"
-                    )}
+                {/* Animasi — hanya mode halaman (Manga/Komik) */}
+                {!isScroll && (
+                  <SettingSegmented
+                    label="Animasi Halaman"
+                    value={settings.transition}
+                    onChange={(transition) => onSettingsChange({ transition })}
+                    options={[
+                      { value: "slide", label: "Geser", desc: "Geser ke samping" },
+                      { value: "fade", label: "Fade", desc: "Timbul pelan" },
+                    ]}
                   />
-                </button>
-              </div>
+                )}
+              </SettingSection>
 
-              {/* Page Gap — hanya webtoon */}
-              {isScroll && (
-                <div className="mb-5">
-                  <label className="text-xs text-text-muted mb-2 block">
-                    Jarak Halaman · {settings.gap}px
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="32"
-                    step="4"
-                    value={settings.gap}
-                    onChange={(e) => onSettingsChange({ gap: parseInt(e.target.value) })}
-                    className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-purple-500"
-                  />
-                </div>
-              )}
-
-              {/* Page Number Toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Nomor Halaman</span>
-                <button
-                  onClick={() => onSettingsChange({ showPageNumber: !settings.showPageNumber })}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all duration-300",
-                    settings.showPageNumber ? "bg-purple-600" : "bg-white/10"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "w-5 h-5 rounded-full bg-white transition-transform duration-300",
-                      settings.showPageNumber ? "translate-x-6" : "translate-x-0.5"
-                    )}
-                  />
-                </button>
-              </div>
+              {/* ===== Kontrol ===== */}
+              <SettingSection title="Kontrol">
+                <SettingToggle
+                  label="Balik Arah Ketuk"
+                  desc={
+                    <>
+                      <ChevronLeft size={10} />
+                      Zona kiri/kanan
+                      <ChevronRight size={10} />
+                    </>
+                  }
+                  value={settings.flipTap}
+                  onChange={(flipTap) => onSettingsChange({ flipTap })}
+                />
+              </SettingSection>
             </motion.div>
           </motion.div>
         )}
@@ -854,9 +948,10 @@ export function ReaderEngine({
                 {chapter.prevChapter && (
                   <Link
                     href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
-                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
+                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10 flex items-center justify-center gap-1.5"
                   >
-                    ← Chapter Sebelumnya
+                    <ChevronLeft size={14} />
+                    Sebelumnya
                   </Link>
                 )}
                 <div className="surface-elevated rounded-xl px-4 py-3 text-center text-sm font-medium text-purple-300">
@@ -865,9 +960,10 @@ export function ReaderEngine({
                 {chapter.nextChapter && (
                   <Link
                     href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
-                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10"
+                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10 flex items-center justify-center gap-1.5"
                   >
-                    Chapter Selanjutnya →
+                    Selanjutnya
+                    <ChevronRight size={14} />
                   </Link>
                 )}
               </div>

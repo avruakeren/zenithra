@@ -49,7 +49,6 @@ export interface ReadingSettings {
   brightness: number;
   fitMode: "width" | "height" | "auto";
   gap: number;
-  showPageNumber: boolean;
   /** Warna kanvas di balik halaman komik. */
   background: "black" | "gray" | "krem";
   /** Transisi antar halaman di mode Manga/Komik. */

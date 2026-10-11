@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Chapter } from "@/lib/types";
 import { formatElapsedTime } from "@/lib/utils";
-import { BookOpen, CheckCheck, Clock } from "lucide-react";
+import { BookOpen, Clock } from "lucide-react";
 
 interface ChapterListProps {
   chapters: Chapter[];
@@ -84,31 +84,22 @@ export function ChapterList({
                   <p className="text-xs text-text-muted truncate">{ch.title}</p>
                 )}
                 {isCurrent && (
-                  <p className="text-[10px] text-purple-400 mt-0.5">Dilanjut</p>
+                  <p className="text-[10px] text-purple-400 mt-0.5">Terakhir dibaca</p>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isRead && (
-                  <CheckCheck
-                    size={14}
-                    className="text-emerald-400/70"
-                    aria-label="Sudah dibaca"
-                  />
-                )}
-                {ch.uploadDate && (
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-[10px] text-text-dim flex items-center gap-1">
-                      <Clock size={10} />
-                      {ch.uploadDate}
+              {ch.uploadDate && (
+                <div className="flex flex-col items-end gap-0.5 shrink-0">
+                  <span className="text-[10px] text-text-dim flex items-center gap-1">
+                    <Clock size={10} />
+                    {ch.uploadDate}
+                  </span>
+                  {elapsed && (
+                    <span className="text-[10px] text-text-dim opacity-70">
+                      {elapsed}
                     </span>
-                    {elapsed && (
-                      <span className="text-[10px] text-text-dim opacity-70">
-                        {elapsed}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </Link>
         );

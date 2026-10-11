@@ -38,14 +38,27 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
   const latestChapter = sortedChapters[sortedChapters.length - 1];
 
   const readProgress = useMemo(() => {
-    const latestNumber = parseChapterNumber(latestChapter?.number ?? "");
-    if (!latestChapter || latestNumber <= 0) return null;
+    const total = sortedChapters.length;
+    if (total === 0) return null;
 
-    const readNumber = parseChapterNumber(lastReadChapter ?? "");
-    const percent = Math.min(100, Math.max(0, Math.round((readNumber / latestNumber) * 100)));
+    // Dihitung dari log chapter yang benar-benar dibuka, bukan cuma
+    // chapter terakhir — angka terakhir bisa lompat (mis. langsung buka
+    // chapter terbaru), jadi persentasenya jadi melebih-lebih.
+    const readNumbers = new Set(
+      readChapters.map(parseChapterNumber).filter((number) => number > 0)
+    );
+    const readCount = sortedChapters.filter((ch) =>
+      readNumbers.has(parseChapterNumber(ch.number))
+    ).length;
 
-    return { percent, readNumber, latestNumber };
-  }, [latestChapter, lastReadChapter]);
+    // Maksimal 2 digit desimal; Number() buang nol di belakang
+    // (jadi 50, bukan 50.00).
+    const percent = Number(
+      Math.min(100, Math.max(0, (readCount / total) * 100)).toFixed(2)
+    );
+
+    return { percent, readCount, total };
+  }, [sortedChapters, readChapters]);
 
   useEffect(() => {
     async function fetchManga() {
@@ -206,9 +219,14 @@ export default function MangaDetailPage({ params }: { params: Promise<{ slug: st
                   />
                 </div>
                 <p className="text-xs text-text-muted mt-2">
-                  {readProgress.readNumber > 0
-                    ? `Chapter ${readProgress.readNumber} dari ${readProgress.latestNumber}`
-                    : "Belum dibaca"}
+                  {readProgress.readCount > 0 ? (
+                    <>
+                      {readProgress.readCount} dari {readProgress.total} chapter dibaca
+                      {lastReadChapter && <> · terakhir Ch. {lastReadChapter}</>}
+                    </>
+                  ) : (
+                    "Belum dibaca"
+                  )}
                 </p>
               </div>
             )}
