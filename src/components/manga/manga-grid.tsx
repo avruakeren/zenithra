@@ -1,17 +1,23 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Manga } from "@/lib/types";
 import { MangaCard } from "./manga-card";
 import { MangaGridSkeleton } from "@/components/shared/skeleton";
 
 interface MangaGridProps {
-  title: string;
+  title?: string;
   manga: Manga[];
   loading?: boolean;
+  /** Kartu yang dirender sebelum tombol "Tampilkan lainnya" muncul. */
+  limit?: number;
+  /** Sembunyikan sisanya di balik tombol expand (lokal, tanpa fetch). */
+  expandable?: boolean;
 }
 
-export function MangaGrid({ title, manga, loading }: MangaGridProps) {
+export function MangaGrid({ title, manga, loading, limit, expandable }: MangaGridProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const uniqueManga = useMemo(() => {
     const seen = new Set<string>();
     return manga.filter((item) => {
@@ -21,10 +27,14 @@ export function MangaGrid({ title, manga, loading }: MangaGridProps) {
     });
   }, [manga]);
 
+  const hiddenCount = limit ? Math.max(0, uniqueManga.length - limit) : 0;
+  const visibleManga =
+    limit && !expanded ? uniqueManga.slice(0, limit) : uniqueManga;
+
   if (loading) {
     return (
       <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-3 px-1">{title}</h2>
+        {title && <h2 className="text-lg font-semibold mb-3 px-1">{title}</h2>}
         <MangaGridSkeleton />
       </section>
     );
@@ -34,12 +44,22 @@ export function MangaGrid({ title, manga, loading }: MangaGridProps) {
 
   return (
     <section className="mb-6">
-      <h2 className="text-lg font-semibold mb-3 px-1">{title}</h2>
+      {title && <h2 className="text-lg font-semibold mb-3 px-1">{title}</h2>}
       <div className="grid grid-cols-3 gap-3">
-        {uniqueManga.map((m) => (
+        {visibleManga.map((m) => (
           <MangaCard key={m.slug} manga={m} layout="grid" />
         ))}
       </div>
+      {expandable && hiddenCount > 0 && (
+        <button
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-3 mx-auto block px-4 py-2 rounded-full bg-white/5 border border-white/5 text-xs font-medium text-text-muted hover:bg-white/10 hover:text-text transition-colors"
+        >
+          {expanded
+            ? "Tampilkan lebih sedikit"
+            : `Tampilkan lainnya (${hiddenCount} lagi)`}
+        </button>
+      )}
     </section>
   );
 }

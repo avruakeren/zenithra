@@ -94,70 +94,131 @@ function dedupeManga(items: Manga[]): Manga[] {
 
 // ===== HOMEPAGE =====
 
-export async function getHomepageRanking(): Promise<{ harian: Manga[]; mingguan: Manga[] }> {
-  const html = await fetchHTML(BASE_URL);
-
-  const parseRankSection = (sectionHtml: string): Manga[] => {
-    const results: Manga[] = [];
-    const articleRegex = /<article class="ls4">([\s\S]*?)<\/article>/g;
-    let match;
-    while ((match = articleRegex.exec(sectionHtml)) !== null) {
-      const manga = parseRankArticle(match[1]);
-      if (manga) {
-        results.push(manga);
-      }
-    }
-    return dedupeManga(results).map((manga, index) => ({
-      ...manga,
-      rank: index + 1,
-    }));
-  };
-
-  // Extract between rank section IDs - find the actual section boundaries
-  const harianSection = extractBetween(html, 'id="rank-harian"', 'id="rank-mingguan"');
-  const mingguanSection = extractBetween(html, 'id="rank-mingguan"', '</section>');
-
-  return {
-    harian: harianSection ? parseRankSection(harianSection) : [],
-    mingguan: mingguanSection ? parseRankSection(mingguanSection) : [],
-  };
+export interface GenreShelf {
+  label: string;
+  items: Manga[];
 }
 
-export async function getHomepageLatest(): Promise<Manga[]> {
-  const html = await fetchHTML(BASE_URL);
+export interface HomepageData {
+  ranking: { harian: Manga[]; mingguan: Manga[] };
+  latest: Manga[];
+  baru: Manga[];
+  rekomendasi: GenreShelf[];
+}
 
-  // Extract the Terbaru section
-  const terbaruSection = extractBetween(html, 'id="Terbaru"', '<section id="Filter"');
-
+function parseRankSection(sectionHtml: string): Manga[] {
   const results: Manga[] = [];
-  const articleRegex = /<article class="ls2">([\s\S]*?)<\/article>/g;
+  const articleRegex = /<article class="ls4">([\s\S]*?)<\/article>/g;
   let match;
-  while ((match = articleRegex.exec(terbaruSection || html)) !== null) {
-    const block = match[1];
+  while ((match = articleRegex.exec(sectionHtml)) !== null) {
+    const manga = parseRankArticle(match[1]);
+    if (manga) {
+      results.push(manga);
+    }
+  }
+  return dedupeManga(results).map((manga, index) => ({
+    ...manga,
+    rank: index + 1,
+  }));
+}
+
+// Kartu <article class="ls2"> dipakai di tiga bagian homepage komiku:
+// Terbaru, Baru Ditambahkan, dan tiap shelf genre.
+function parseLs2Articles(sectionHtml: string): Manga[] {
+  const results: Manga[] = [];
+  const articleRegex = /<article class="ls2"([^>]*)>([\s\S]*?)<\/article>/g;
+  let match;
+  while ((match = articleRegex.exec(sectionHtml)) !== null) {
+    const attrs = match[1];
+    const block = match[2];
+
     const titleM = block.match(/<h3>\s*<a\s+href="([^"]*)"[^>]*>([^<]*)<\/a>\s*<\/h3>/);
     if (!titleM) continue;
 
     const thumbM = block.match(/data-src="([^"]+)"/);
     const genreM = block.match(/<span class="ls2t">([^<]*)<\/span>/);
     const chM = block.match(/<a\s+href="([^"]*)"[^>]*class="ls2l"[^>]*>([^<]*)<\/a>/);
+    const tipeM = attrs.match(/data-tipe="([^"]*)"/);
 
     const url = titleM[1].replace(/\/$/, "");
     const slug = url.replace(/^\/manga\//, "");
-    const genreText = genreM?.[1] || "";
-    const genreParts = genreText.split("·").map(s => s.trim());
+    const genreParts = (genreM?.[1] || "").split("·").map((s) => s.trim());
+    const tipe = (tipeM?.[1] || "").toLowerCase();
 
     results.push({
-      title: titleM[2].trim(),
+      title: decodeHtml(titleM[2].trim()),
       slug,
       thumbnail: buildUrl(thumbM?.[1] || ""),
       genre: genreParts[0] || "",
-      type: "manga",
-      latestChapter: chM?.[2]?.trim() || "",
+      type: tipe === "manhwa" || tipe === "manhua" ? tipe : "manga",
+      latestChapter: decodeHtml(chM?.[2]?.trim() || ""),
       latestChapterSlug: chM?.[1]?.replace(/^\//, "").replace(/\/$/, "") || "",
       url: titleM[1],
     });
   }
   return dedupeManga(results);
+}
+
+// Tiap shelf genre berdiri di antara dua heading <h2>Komik X</h2>;
+// shelf terakhir ditutup oleh nav bawah.
+function extractGenreShelves(html: string): GenreShelf[] {
+  const headingRegex = /<h2[^>]*>\s*Komik ([^<]+?)\s*<\/h2>/g;
+  const headings: { label: string; start: number; end: number }[] = [];
+  let match;
+  while ((match = headingRegex.exec(html)) !== null) {
+    headings.push({
+      label: match[1].trim(),
+      start: match.index,
+      end: match.index + match[0].length,
+    });
+  }
+
+  const navIdx = html.indexOf('id="Navbawah"');
+  return headings
+    .map((heading, i) => {
+      const from = heading.end;
+      const to =
+        i + 1 < headings.length
+          ? headings[i + 1].start
+          : navIdx > from
+            ? navIdx
+            : html.length;
+      return { label: heading.label, items: parseLs2Articles(html.slice(from, to)) };
+    })
+    .filter((shelf) => shelf.items.length > 0);
+}
+
+// Sekali fetch homepage komiku → semua section landing page sekaligus.
+export async function getHomepageData(): Promise<HomepageData> {
+  const html = await fetchHTML(BASE_URL);
+
+  const harianSection = extractBetween(html, 'id="rank-harian"', 'id="rank-mingguan"');
+  const mingguanSection = extractBetween(html, 'id="rank-mingguan"', '</section>');
+
+  // Batas akhir Terbaru = awal section Baru Ditambahkan. (Dulu marker-nya
+  // salah posisi — <section id="Filter"> ada sebelum id="Terbaru" — sampai
+  // parse-nya nyedot sisa seluruh HTML, isi Terbaru jadi campur.)
+  const latest = parseLs2Articles(
+    extractBetween(html, 'id="Terbaru"', 'id="Baru_Ditambahkan"')
+  );
+
+  const baruAll = parseLs2Articles(
+    extractBetween(html, 'id="ls12-baru"', 'id="Genre"')
+  );
+  // Jangan tampil dua kali: judul baru yang kebetulan juga ke-deteksi
+  // sebagai update terbaru dibuang dari daftar "Baru Ditambahkan".
+  const latestSlugs = new Set(latest.map((manga) => manga.slug));
+  const baru = baruAll.filter((manga) => !latestSlugs.has(manga.slug));
+
+  return {
+    ranking: {
+      harian: harianSection ? parseRankSection(harianSection) : [],
+      mingguan: mingguanSection ? parseRankSection(mingguanSection) : [],
+    },
+    latest,
+    baru,
+    rekomendasi: extractGenreShelves(html),
+  };
 }
 
 // ===== MANGA DETAIL =====

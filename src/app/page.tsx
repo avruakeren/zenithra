@@ -10,25 +10,29 @@ import { Footer } from "@/components/shared/footer";
 import { getHistory } from "@/lib/bookmark";
 import { Manga } from "@/lib/types";
 
+type RecoShelf = { label: string; items: Manga[] };
+
 export default function HomePage() {
   const [ranking, setRanking] = useState<{ harian: Manga[]; mingguan: Manga[] }>({ harian: [], mingguan: [] });
   const [latest, setLatest] = useState<Manga[]>([]);
+  const [baru, setBaru] = useState<Manga[]>([]);
+  const [rekomendasi, setRekomendasi] = useState<RecoShelf[]>([]);
   const [loading, setLoading] = useState(true);
   const [rankTab, setRankTab] = useState<"harian" | "mingguan">("harian");
+  const [recoTab, setRecoTab] = useState(0);
   const [history, setHistory] = useState<LastReadItem[]>([]);
   const [now, setNow] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [rankRes, latestRes] = await Promise.all([
-          fetch("/api/homepage"),
-          fetch("/api/homepage?section=latest"),
-        ]);
-        const rankData = await rankRes.json();
-        const latestData = await latestRes.json();
-        setRanking(rankData.ranking || { harian: [], mingguan: [] });
-        setLatest(latestData.latest || []);
+        // Satu request buat semua section — homepage komiku di-scrape sekali.
+        const res = await fetch("/api/homepage");
+        const data = await res.json();
+        setRanking(data.ranking || { harian: [], mingguan: [] });
+        setLatest(data.latest || []);
+        setBaru(data.baru || []);
+        setRekomendasi(Array.isArray(data.rekomendasi) ? data.rekomendasi : []);
       } catch (err) {
         console.error("Failed to fetch homepage:", err);
       } finally {
@@ -123,7 +127,36 @@ export default function HomePage() {
         </section>
 
         {/* Latest Section */}
-        <MangaGrid title="Terbaru" manga={latest} loading={loading} />
+        <MangaGrid title="Terbaru" manga={latest} loading={loading} limit={18} expandable />
+
+        {/* Newly Added Section */}
+        <MangaGrid title="Baru Ditambahkan" manga={baru} loading={loading} limit={18} expandable />
+
+        {/* Recommendation Section (per-genre shelf) */}
+        {rekomendasi.length > 0 && (
+          <section className="mb-6">
+            <div className="flex items-baseline gap-2 mb-3">
+              <h2 className="text-lg font-semibold">Rekomendasi</h2>
+              <span className="text-xs text-text-muted">geser genre →</span>
+            </div>
+            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-4 px-4">
+              {rekomendasi.map((shelf, idx) => (
+                <button
+                  key={shelf.label}
+                  onClick={() => setRecoTab(idx)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                    recoTab === idx
+                      ? "bg-purple-600/20 text-purple-300 border border-purple-500/30"
+                      : "bg-white/5 text-text-muted border border-white/5"
+                  }`}
+                >
+                  {shelf.label}
+                </button>
+              ))}
+            </div>
+            <MangaGrid manga={rekomendasi[recoTab]?.items ?? []} loading={loading} />
+          </section>
+        )}
       </div>
 
       <Footer />
