@@ -55,9 +55,7 @@ export function MangaGrid({ title, manga, loading, limit, expandable }: MangaGri
           onClick={() => setExpanded((value) => !value)}
           className="mt-3 mx-auto block px-4 py-2 rounded-full bg-white/5 border border-white/5 text-xs font-medium text-text-muted hover:bg-white/10 hover:text-text transition-colors"
         >
-          {expanded
-            ? "Tampilkan lebih sedikit"
-            : `Tampilkan lainnya (${hiddenCount} lagi)`}
+          {expanded ? "Tampilkan lebih sedikit" : "Tampilkan lainnya"}
         </button>
       )}
     </section>

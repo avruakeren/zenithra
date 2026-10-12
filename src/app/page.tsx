@@ -135,11 +135,8 @@ export default function HomePage() {
         {/* Recommendation Section (per-genre shelf) */}
         {rekomendasi.length > 0 && (
           <section className="mb-6">
-            <div className="flex items-baseline gap-2 mb-3">
-              <h2 className="text-lg font-semibold">Rekomendasi</h2>
-              <span className="text-xs text-text-muted">geser genre →</span>
-            </div>
-            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-4 px-4">
+            <h2 className="text-lg font-semibold mb-3 px-1">Jelajahi Genre</h2>
+            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-4 px-4 reader-hidden-scrollbar">
               {rekomendasi.map((shelf, idx) => (
                 <button
                   key={shelf.label}
