@@ -4,9 +4,10 @@ import { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } fro
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, type Transition, type Variants } from "framer-motion";
-import { cn, READER_CANVAS } from "@/lib/utils";
+import { cn, READER_CANVAS, formatElapsedTime } from "@/lib/utils";
 import { useSwipeGesture } from "./touch-gesture";
 import { Chapter, ChapterPages, ReadingSettings } from "@/lib/types";
+import { getReadChapters, markChapterRead } from "@/lib/bookmark";
 import { ChevronLeft, ChevronRight, ChevronDown, Check, Search, Settings, List, ArrowLeft, X } from "lucide-react";
 
 // Cache daftar chapter per manga (per sesi). Dipakai buat indikator
@@ -232,6 +233,9 @@ export function ReaderEngine({
   const [chapterListFailed, setChapterListFailed] = useState(false);
   const [chapterPickerOpen, setChapterPickerOpen] = useState(false);
   const [chapterQuery, setChapterQuery] = useState("");
+  const [readChapters, setReadChapters] = useState<string[]>([]);
+  const [chapterFilter, setChapterFilter] = useState<"all" | "unread">("all");
+  const [chapterSort, setChapterSort] = useState<"asc" | "desc">("asc");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -270,11 +274,38 @@ export function ReaderEngine({
     [chapterList]
   );
 
+  // Saat daftar terisi, hidrasi log chapter yang sudah dibuka tanpa setState sync di body effect.
+  useEffect(() => {
+    if (!chapterList) return;
+    const hydrate = window.setTimeout(() => {
+      try {
+        setReadChapters(getReadChapters(mangaSlug, chapterList));
+      } catch {
+        setReadChapters([]);
+      }
+    }, 0);
+    return () => window.clearTimeout(hydrate);
+  }, [chapterList, mangaSlug]);
+
+  const normalizeChapterNumberForSort = (value: string) => {
+    const number = parseFloat((value || "").replace(/[^\d.]/g, ""));
+    return Number.isFinite(number) ? number : 0;
+  };
+
   const filteredChapters = useMemo(() => {
     const query = chapterQuery.trim().toLowerCase();
-    if (!query) return sortedChapterList;
-    return sortedChapterList.filter((ch) => ch.number.toLowerCase().includes(query));
-  }, [sortedChapterList, chapterQuery]);
+    const readSet = new Set(readChapters);
+    const sorted = [...sortedChapterList].sort((a, b) => {
+      const diff =
+        normalizeChapterNumberForSort(a.number) - normalizeChapterNumberForSort(b.number);
+      return chapterSort === "desc" ? -diff : diff;
+    });
+    return sorted.filter((ch) => {
+      if (query && !ch.number.toLowerCase().includes(query)) return false;
+      if (chapterFilter === "unread" && readSet.has(ch.number)) return false;
+      return true;
+    });
+  }, [sortedChapterList, chapterQuery, chapterSort, chapterFilter, readChapters]);
 
   const currentChapterNumber =
     sortedChapterList.find((ch) => ch.slug === currentChapterSlug)?.number ??
@@ -598,8 +629,8 @@ export function ReaderEngine({
                 <ArrowLeft size={16} />
               </Link>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-text-muted truncate">{chapter.title}</p>
-                <p className="text-sm font-medium">
+                <p className="text-sm font-medium truncate">{chapter.title}</p>
+                <p className="text-xs text-text-muted truncate">
                   Chapter {chapter.chapterNumber} · {currentPage + 1}/{totalPages}
                 </p>
               </div>
@@ -732,25 +763,44 @@ export function ReaderEngine({
             <div className="glass-elevated mx-3 mb-3 rounded-2xl px-4 py-3 flex items-center gap-2">
               {!isScroll && (
                 <>
-                  <button
-                    onClick={isRTL ? goNext : goPrev}
-                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
-                    aria-label={isRTL ? "Selanjutnya" : "Sebelumnya"}
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
+                  {/* Kiri/kanan = pindah chapter (bukan halaman). Halaman tetap lewat tap-zone & keyboard. */}
+                  {chapter.prevChapter ? (
+                    <Link
+                      href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+                      aria-label="Chapter sebelumnya"
+                    >
+                      <ChevronLeft size={20} />
+                    </Link>
+                  ) : (
+                    <span
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center opacity-30"
+                      aria-hidden
+                    >
+                      <ChevronLeft size={20} />
+                    </span>
+                  )}
                   <div className="flex-1 text-center">
                     <span className="text-sm font-mono font-medium text-text-muted">
                       {chapterProgressLabel}
                     </span>
                   </div>
-                  <button
-                    onClick={isRTL ? goPrev : goNext}
-                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
-                    aria-label={isRTL ? "Sebelumnya" : "Selanjutnya"}
-                  >
-                    <ChevronRight size={20} />
-                  </button>
+                  {chapter.nextChapter ? (
+                    <Link
+                      href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+                      aria-label="Chapter selanjutnya"
+                    >
+                      <ChevronRight size={20} />
+                    </Link>
+                  ) : (
+                    <span
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center opacity-30"
+                      aria-hidden
+                    >
+                      <ChevronRight size={20} />
+                    </span>
+                  )}
                 </>
               )}
               {isScroll && (
@@ -924,7 +974,7 @@ export function ReaderEngine({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-h-[85vh] glass-elevated rounded-t-3xl p-6 safe-area-bottom"
+              className="w-full max-h-[85vh] glass-elevated rounded-t-3xl p-6 pb-8 safe-area-bottom"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
@@ -944,31 +994,7 @@ export function ReaderEngine({
                 </button>
               </div>
 
-              <div className="space-y-2">
-                {chapter.prevChapter && (
-                  <Link
-                    href={`/manga/${mangaSlug}/${chapter.prevChapter}`}
-                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10 flex items-center justify-center gap-1.5"
-                  >
-                    <ChevronLeft size={14} />
-                    Sebelumnya
-                  </Link>
-                )}
-                <div className="surface-elevated rounded-xl px-4 py-3 text-center text-sm font-medium text-purple-300">
-                  Chapter {chapter.chapterNumber}
-                </div>
-                {chapter.nextChapter && (
-                  <Link
-                    href={`/manga/${mangaSlug}/${chapter.nextChapter}`}
-                    className="block surface rounded-xl px-4 py-3 text-center text-purple-400 hover:bg-purple-500/10 flex items-center justify-center gap-1.5"
-                  >
-                    Selanjutnya
-                    <ChevronRight size={14} />
-                  </Link>
-                )}
-              </div>
-
-              <div className="h-px bg-white/10 my-4" />
+              <div className="h-px bg-white/10 my-3" />
 
               {chapterListLoading && (
                 <div className="flex items-center justify-center py-10">
@@ -1029,7 +1055,7 @@ export function ReaderEngine({
                     </button>
 
                     {chapterPickerOpen && (
-                      <div className="absolute left-0 right-0 bottom-full mb-2 z-[80] glass-elevated rounded-2xl overflow-hidden shadow-2xl">
+                      <div className="absolute left-0 right-0 bottom-full mb-0 z-[80] bg-black/75 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                         <div className="flex items-center gap-2 border-b border-white/10 px-3">
                           <Search size={14} className="shrink-0 text-text-dim" />
                           <input
@@ -1038,20 +1064,70 @@ export function ReaderEngine({
                             placeholder="Cari chapter..."
                             className="w-full bg-transparent py-3 text-sm text-foreground placeholder:text-text-dim outline-none"
                           />
+                          {chapterQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setChapterQuery("")}
+                              className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-text-dim hover:text-foreground"
+                              aria-label="Hapus pencarian"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-white/10">
+                          {(["all", "unread"] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setChapterFilter(f)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors",
+                                chapterFilter === f
+                                  ? "bg-purple-600/25 text-purple-200"
+                                  : "bg-white/5 text-text-muted"
+                              )}
+                            >
+                              {f === "all" ? "Semua" : "Belum dibaca"}
+                            </button>
+                          ))}
+                          <div className="w-px h-4 bg-white/10 mx-0.5" />
+                          {(["asc", "desc"] as const).map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setChapterSort(s)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors",
+                                chapterSort === s
+                                  ? "bg-white/10 text-foreground"
+                                  : "bg-white/5 text-text-muted"
+                              )}
+                            >
+                              {s === "asc" ? "Terlama ↑" : "Terbaru ↓"}
+                            </button>
+                          ))}
                         </div>
 
                         <div
                           ref={chapterListBoxRef}
                           role="listbox"
-                          className="max-h-[38vh] overflow-y-auto reader-hidden-scrollbar p-1.5"
+                          className="max-h-[50vh] overflow-y-auto reader-hidden-scrollbar p-1.5 pb-3"
                         >
                           {filteredChapters.length === 0 ? (
                             <p className="px-3 py-6 text-center text-xs text-text-dim">
-                              Tidak ada chapter cocok
+                              {chapterFilter === "unread"
+                                ? "Semua chapter udah dibaca 🎉"
+                                : chapterQuery.trim()
+                                  ? "Tidak ada chapter cocok"
+                                  : "Tidak ada chapter"}
                             </p>
                           ) : (
                             filteredChapters.map((ch) => {
                               const isActive = ch.slug === currentChapterSlug;
+                              const isRead = readChapters.includes(ch.number) || isActive;
+                              const elapsed = formatElapsedTime(ch.uploadDate ?? "");
                               return (
                                 <button
                                   key={ch.slug}
@@ -1064,23 +1140,40 @@ export function ReaderEngine({
                                       closeChapterPicker();
                                       return;
                                     }
+                                    markChapterRead(mangaSlug, ch.number);
+                                    setReadChapters((prev) =>
+                                      prev.includes(ch.number)
+                                        ? prev
+                                        : [...prev, ch.number]
+                                    );
                                     router.push(`/manga/${mangaSlug}/${ch.slug}`);
                                     closeChapterPicker();
                                   }}
                                   className={cn(
-                                    "w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+                                    "w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
                                     isActive
                                       ? "bg-purple-600/25 text-purple-100"
-                                      : "text-text-muted active:bg-white/5"
+                                      : cn("text-text-muted active:bg-white/5", isRead && "opacity-60")
                                   )}
                                 >
-                                  <span>Chapter {ch.number}</span>
+                                  <span className="flex flex-col min-w-0">
+                                    <span className="truncate">
+                                      Chapter {ch.number}
+                                      {ch.title ? ` · ${ch.title}` : ""}
+                                    </span>
+                                    {elapsed && (
+                                      <span className="block text-[10px] text-text-dim mt-0.5">
+                                        {elapsed}
+                                      </span>
+                                    )}
+                                  </span>
                                   {isActive && <Check size={14} className="shrink-0" />}
                                 </button>
                               );
                             })
                           )}
                         </div>
+                        <div className="h-2" />
                       </div>
                     )}
                   </div>
